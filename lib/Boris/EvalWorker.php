@@ -39,7 +39,7 @@ class EvalWorker {
 
   private function initBuiltinMacros() {
     $this->addUseMacro();
-    $this->addSpliceMacro();
+    $this->addUnquoteSpliceMacro();
   }
 
   private function addUnquoteSpliceMacro() {
