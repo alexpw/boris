@@ -1,5 +1,7 @@
 # Boris
 
+This is a fork, please see and consider [the original](https://github.com/d11wtq/boris).
+
 A tiny, but robust REPL for PHP.
 
 > **Announcement:** I'm looking to add one or two additional collaborators with
