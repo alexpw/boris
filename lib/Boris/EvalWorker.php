@@ -39,6 +39,21 @@ class EvalWorker {
 
   private function initBuiltinMacros() {
     $this->addUseMacro();
+    $this->addSpliceMacro();
+  }
+
+  private function addUnquoteSpliceMacro() {
+    $this->_macros['/(.*?)~@(\$[\w\_]+)(.*)/'] = function ($matches) {
+      list($raw, $before, $var, $after) = $matches;
+      $q_before = "'$before'";
+      $q_after  = "'$after'";
+      $s = '
+          $__xs = implode(\', \', '.$var.');
+          $__qs = '.$q_before.' . $__xs . '.$q_after.';
+          return eval(\'return $__qs;\');
+      ';
+      return $s;
+    };
   }
 
   private function addUseMacro() {
@@ -167,6 +182,10 @@ class EvalWorker {
         $__pid = posix_getpid();
 
         $__result = eval($__input);
+
+        while (is_string($__result) && stripos($__result, 'return ') === 0) {
+          $__result = eval($__result);
+        }
 
         if (posix_getpid() != $__pid) {
           // whatever the user entered caused a forked child
