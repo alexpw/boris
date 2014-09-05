@@ -29,9 +29,11 @@ class Config {
 
       if ($userHome = getenv('HOME')) {
         $searchPaths[] = "{$userHome}/.borisrc";
+        $searchPaths[] = "{$userHome}/.borisrc.php";
       }
 
       $searchPaths[] = getcwd() . '/.borisrc';
+      $searchPaths[] = getcwd() . '/.borisrc.php';
     }
 
     $this->_cascade     = $cascade;
