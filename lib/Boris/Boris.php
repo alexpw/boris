@@ -164,7 +164,7 @@ class Boris {
       }
 
       fclose($pipes[0]);
-      $client = new ReadlineClient($pipes[1]);
+      $client = new Reader($pipes[1]);
       $client->start($this->_prompt, $this->_historyFile);
     } elseif ($pid < 0) {
       throw new \RuntimeException('Failed to fork child process');

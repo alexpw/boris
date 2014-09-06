@@ -166,10 +166,11 @@ class EvalWorker {
 
         if ($this->_pid < 0) {
           throw new \RuntimeException('Failed to fork child labourer');
-        } elseif ($this->_pid > 0) {
+        } else if ($this->_pid > 0) {
           // kill the child on ctrl-c
           pcntl_signal(SIGINT, array($this, 'cancelOperation'), true);
           pcntl_waitpid($this->_pid, $__status);
+          pcntl_signal_dispatch();
 
           if (!$this->_cancelled && $__status != (self::ABNORMAL_EXIT << 8)) {
             $__response = self::EXITED;
@@ -186,9 +187,11 @@ class EvalWorker {
 
           // undo ctrl-c signal handling ready for user code execution
           pcntl_signal(SIGINT, SIG_DFL, true);
+          pcntl_signal_dispatch();
           $__pid = posix_getpid();
 
           $__input = $this->_transform($__input);
+          #file_put_contents('/tmp/dbg', "INPUT: ".var_export($__input,true).PHP_EOL, FILE_APPEND);
           $__result = eval($__input);
 
           while (is_string($__result) && stripos($__result, 'return ') === 0) {
@@ -340,6 +343,7 @@ class EvalWorker {
   }
 
   private function _write($socket, $data) {
+    #return;
     $total = strlen($data);
     for ($written = 0; $written < $total; $written += $fwrite) {
       $fwrite = fwrite($socket, substr($data, $written));
@@ -504,7 +508,7 @@ class EvalWorker {
 
   /**
    * Return the static methods and constants of an object.
-   * 
+   *
    * These are the symbols which can appear after the :: operator
    */
   private function _staticMembers($obj) {
