@@ -7,16 +7,17 @@ namespace Boris;
 /**
  * Boris is a tiny REPL for PHP.
  */
-class Boris {
-  const VERSION = "1.0.8";
+class Boris
+{
+  const VERSION = "1.1.0";
 
-  private $_prompt;
-  private $_historyFile;
-  private $_exports = array();
-  private $_startHooks = array();
-  private $_failureHooks = array();
-  private $_inspector;
-  private $_macros = array();
+  private $prompt;
+  private $historyFile;
+  private $exports = array();
+  private $startHooks = array();
+  private $failureHooks = array();
+  private $inspector;
+  private $macros;
 
   /**
    * Create a new REPL, which consists of an evaluation worker and a readline client.
@@ -24,13 +25,15 @@ class Boris {
    * @param string $prompt, optional
    * @param string $historyFile, optional
    */
-  public function __construct($prompt = 'boris> ', $historyFile = null) {
+  public function __construct($prompt = 'php> ', $historyFile = null)
+  {
     $this->setPrompt($prompt);
-    $this->_historyFile = $historyFile
+    $this->historyFile = $historyFile
       ? $historyFile
       : sprintf('%s/.boris_history', getenv('HOME'))
       ;
-    $this->_inspector = new ColoredInspector();
+    $this->inspector = new Inspector\Colored();
+    $this->macros    = new Macros();
   }
 
   /**
@@ -60,8 +63,9 @@ class Boris {
    *
    *   $boris->onStart('echo "The date is $date\n";');
    */
-  public function onStart($hook) {
-    $this->_startHooks[] = $hook;
+  public function onStart($hook)
+  {
+    $this->startHooks[] = $hook;
   }
 
   /**
@@ -88,8 +92,9 @@ class Boris {
    *     DB::reset();
    *   });
    */
-  public function onFailure($hook){
-    $this->_failureHooks[] = $hook;
+  public function onFailure($hook)
+  {
+    $this->failureHooks[] = $hook;
   }
 
   /**
@@ -106,12 +111,13 @@ class Boris {
    * @param array|string $local
    * @param mixed $value, optional
    */
-  public function setLocal($local, $value = null) {
+  public function setLocal($local, $value = null)
+  {
     if (!is_array($local)) {
       $local = array($local => $value);
     }
 
-    $this->_exports = array_merge($this->_exports, $local);
+    $this->exports = array_merge($this->exports, $local);
   }
 
   /**
@@ -119,8 +125,9 @@ class Boris {
    *
    * @param string $prompt
    */
-  public function setPrompt($prompt) {
-    $this->_prompt = $prompt;
+  public function setPrompt($prompt)
+  {
+    $this->prompt = $prompt;
   }
 
   /**
@@ -128,8 +135,9 @@ class Boris {
    *
    * @param object $inspector any object the responds to inspect($v)
    */
-  public function setInspector($inspector) {
-    $this->_inspector = $inspector;
+  public function setInspector($inspector)
+  {
+    $this->inspector = $inspector;
   }
 
   /**
@@ -138,8 +146,9 @@ class Boris {
    * @param string $match A regex pattern to compare against input expressions.
    * @param string|callable $replacer A replacer string or callback function.
    */
-  public function setMacro($match, $replacer) {
-    $this->_macros[$match] = $replacer;
+  public function setMacro($match, $replacer)
+  {
+    $this->macros[$match] = $replacer;
   }
 
   /**
@@ -147,39 +156,48 @@ class Boris {
    *
    * This method never returns.
    */
-  public function start() {
-    declare(ticks = 1);
+  public function start()
+  {
+    declare(ticks = 1); // required "for the signal handler to function"
     pcntl_signal(SIGINT, SIG_IGN, true);
 
-    if (!$pipes = stream_socket_pair(
+    if (! $pipes = stream_socket_pair(
       STREAM_PF_UNIX, STREAM_SOCK_STREAM, STREAM_IPPROTO_IP)) {
       throw new \RuntimeException('Failed to create socket pair');
     }
 
+    $this->forkAndStart($pipes);
+  }
+
+  private function forkAndStart($pipes)
+  {
     $pid = pcntl_fork();
 
     if ($pid > 0) {
+
       if (function_exists('setproctitle')) {
         setproctitle('boris (master)');
       }
-
       fclose($pipes[0]);
-      $client = new Reader($pipes[1]);
-      $client->start($this->_prompt, $this->_historyFile);
-    } elseif ($pid < 0) {
+      $client = new ReadlineClient($pipes[1]);
+      $client->start($this->prompt, $this->historyFile);
+
+    } else if ($pid < 0) {
+
       throw new \RuntimeException('Failed to fork child process');
+
     } else {
+
       if (function_exists('setproctitle')) {
         setproctitle('boris (worker)');
       }
-
       fclose($pipes[1]);
       $worker = new EvalWorker($pipes[0]);
-      $worker->setLocal($this->_exports);
-      $worker->setStartHooks($this->_startHooks);
-      $worker->setFailureHooks($this->_failureHooks);
-      $worker->setInspector($this->_inspector);
-      $worker->addMacros($this->_macros);
+      $worker->setLocal($this->exports);
+      $worker->setStartHooks($this->startHooks);
+      $worker->setFailureHooks($this->failureHooks);
+      $worker->setInspector($this->inspector);
+      $worker->setMacros($this->macros);
       $worker->start();
     }
   }

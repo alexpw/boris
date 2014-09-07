@@ -129,7 +129,7 @@ class ShallowParser {
   private function _scanWsp($result) {
     if (preg_match('/^\s+/', $result->buffer, $match)) {
       if (!empty($result->statements) && $result->stmt === '') {
-        $result->statements[] = array_pop($result->statements) . $match[0];
+        $result->statements[count($result->statements)-1] .= $match[0];
       } else {
         $result->stmt .= $match[0];
       }

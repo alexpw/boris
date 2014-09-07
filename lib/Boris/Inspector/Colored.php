@@ -9,12 +9,13 @@
  * Copyright © 2013-2014 Rob Morris.
  */
 
-namespace Boris;
+namespace Boris\Inspector;
 
 /**
  * Identifies data types in data structures and syntax highlights them.
  */
-class ColoredInspector implements Inspector {
+class Colored implements Inspector
+{
   static $TERM_COLORS = array(
     'black'        => "\033[0;30m",
     'white'        => "\033[1;37m",
@@ -74,8 +75,9 @@ class ColoredInspector implements Inspector {
    *
    * @param array $colorMap
    */
-  public function __construct($colorMap = null) {
-    $this->_fallback = new DumpInspector();
+  public function __construct($colorMap = null)
+  {
+    $this->_fallback = new Dump();
 
     if (isset($colorMap)) {
       $this->_colorMap = $colorMap;
@@ -84,12 +86,9 @@ class ColoredInspector implements Inspector {
     }
   }
 
-  public function inspect($variable) {
-    return preg_replace(
-      '/^/m',
-      $this->_colorize('comment', '// '),
-      $this->_dump($variable)
-    );
+  public function inspect($variable)
+  {
+    return $this->_dump($variable);
   }
 
   /**
@@ -100,13 +99,15 @@ class ColoredInspector implements Inspector {
    * @param object $value
    * @return array
    * */
-  public function objectVars($value) {
+  public function objectVars($value)
+  {
     return get_object_vars($value);
   }
 
   // -- Private Methods
 
-  public function _dump($value) {
+  public function _dump($value)
+  {
     $tests = array(
       'is_null'    => '_dumpNull',
       'is_string'  => '_dumpString',
@@ -160,7 +161,8 @@ class ColoredInspector implements Inspector {
     return $this->_astToString($this->_buildAst($type, $value));
   }
 
-  public function _buildAst($type, $value, $seen = array()) {
+  public function _buildAst($type, $value, $seen = array())
+  {
     // FIXME: Improve this AST so it doesn't require access to dump() or colorize()
     if ($this->_isSeen($value, $seen)) {
       return $this->_colorize('default', '*** RECURSION ***');
@@ -200,7 +202,8 @@ class ColoredInspector implements Inspector {
     );
   }
 
-  public function _astToString($node, $indent = 0) {
+  public function _astToString($node, $indent = 0)
+  {
     $children = $node['children'];
     $self     = $this;
 
@@ -236,7 +239,8 @@ class ColoredInspector implements Inspector {
     );
   }
 
-  private function _defaultColorMap() {
+  private function _defaultColorMap()
+  {
     return array(
       'integer' => 'light_green',
       'float'   => 'light_yellow',
@@ -248,7 +252,8 @@ class ColoredInspector implements Inspector {
     );
   }
 
-  private function _colorize($type, $value) {
+  private function _colorize($type, $value)
+  {
     if (!empty($this->_colorMap[$type])) {
       $colorName = $this->_colorMap[$type];
     } else {
@@ -262,12 +267,13 @@ class ColoredInspector implements Inspector {
     );
   }
 
-  private function _isSeen($value, $seen) {
+  private function _isSeen($value, $seen)
+  {
     foreach ($seen as $v) {
-      if ($v === $value)
+      if ($v === $value) {
         return true;
+      }
     }
-
     return false;
   }
 }

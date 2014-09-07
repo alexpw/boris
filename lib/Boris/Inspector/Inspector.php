@@ -2,7 +2,7 @@
 
 /* vim: set shiftwidth=2 expandtab softtabstop=2: */
 
-namespace Boris;
+namespace Boris\Inspector;
 
 /**
  * Something that is capable of returning a useful representation of a variable.

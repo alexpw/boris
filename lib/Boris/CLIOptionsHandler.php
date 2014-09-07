@@ -56,11 +56,13 @@ class CLIOptionsHandler {
     );
 
     $boris->onStart(function($worker, $scope) use($require) {
-      foreach($require as $path) {
+      foreach ($require as $path) {
         require $path;
       }
-
-      $worker->setLocal(get_defined_vars());
+      unset($scope, $require, $path);
+      $vars = get_defined_vars();
+      unset($vars['worker']);
+      $worker->setLocal($vars);
     });
   }
 

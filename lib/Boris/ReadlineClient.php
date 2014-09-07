@@ -4,24 +4,50 @@
 
 namespace Boris;
 
+use Hoa\Console\Cursor;
+use Hoa\Console\Readline\Autocompleter as AC;
+
 /**
  * The Readline client is what the user spends their time entering text into.
  *
- * Input is collected and sent to {@link \Boris\EvalWorker} for processing.
+ * Input is collected and sent to {@link \Boris\SocketComm} for processing.
  */
-class ReadlineClient {
-  private $_socket;
-  private $_prompt;
-  private $_historyFile;
-  private $_clear = false;
+class ReadlineClient
+{
+  private $socket;
+  private $reader;
 
   /**
    * Create a new ReadlineClient using $socket for communication.
    *
    * @param resource $socket
    */
-  public function __construct($socket) {
-    $this->_socket = $socket;
+  public function __construct($socket)
+  {
+    $this->socket = $socket;
+    $this->reader = new Readliner;
+    $this->reader->setAutocompleter(
+      new Autocomplete\Callback(array($this, 'completionCallback'))
+    );
+    /*
+    $functions = get_defined_functions();
+    $internal  = $functions['internal'];
+    sort($internal);
+    $this->reader->setAutocompleter(
+        new AC\Aggregate(array(
+            new AC\Path('/Volumes/CODE/admgmt.answers.com/htdocs/laravel'),
+            new AC\Path('/tmp'),
+            new AC\Word($internal),
+        ))
+    );
+    */
+  }
+
+  public function __destruct()
+  {
+    if ($this->socket) {
+      fclose($this->socket);
+    }
   }
 
   /**
@@ -32,16 +58,16 @@ class ReadlineClient {
    * @param string $prompt
    * @param string $historyFile
    */
-  public function start($prompt, $historyFile) {
-    readline_read_history($historyFile);
-    readline_completion_function(array($this, 'completion_function'));
+  public function start($prompt, $historyFile)
+  {
+    $this->reader->initHistory($historyFile);
 
-    declare(ticks = 1);
+    declare(ticks = 1); // required "for the signal handler to function"
     pcntl_signal(SIGCHLD, SIG_IGN);
-    pcntl_signal(SIGINT, array($this, 'clear'), true);
+    pcntl_signal(SIGINT, array($this, 'clear'), true); // ctrl+c
 
     // wait for the worker to finish executing hooks
-    if (fread($this->_socket, 1) != EvalWorker::READY) {
+    if (fread($this->socket, 1) != SocketComm::SIGNAL_READY) {
       throw new \RuntimeException('EvalWorker failed to start');
     }
 
@@ -50,28 +76,23 @@ class ReadlineClient {
     $lineno = 1;
 
     for (;;) {
-      $this->_clear = false;
-      $line = readline(
-        sprintf(
-          '[%d] %s',
-          $lineno,
-          ($buf == ''
-            ? $prompt
-            : str_pad('*> ', strlen($prompt), ' ', STR_PAD_LEFT))
-        )
+
+      $prompter = sprintf(
+        '[%d] %s',
+        $lineno,
+        ($buf == ''
+          ? $prompt
+          : str_pad('*> ', strlen($prompt), ' ', STR_PAD_LEFT))
       );
+      $line = $this->reader->readLine($prompter);
 
-      if ($this->_clear) {
+      $ctrlD = $line === false;
+      // we want both of these to act like exit(0):
+      // - readline return false on ctrl-d
+      // - user shortcut 'exit'... (must be done here, b/c $parser waits for ';'
+      if ($ctrlD || trim($line) === 'exit') {
+        $line = 'exit(0);';
         $buf = '';
-        continue;
-      }
-
-      if (false === $line) {
-        $buf = 'exit(0);'; // ctrl-d acts like exit
-      }
-
-      if (strlen($line) > 0) {
-        readline_add_history($line);
       }
 
       $buf .= "$line\n";
@@ -79,35 +100,68 @@ class ReadlineClient {
       if ($statements = $parser->statements($buf)) {
         ++$lineno;
 
-        #file_put_contents('/tmp/dbg', var_export(['rline' => $line, 'statements' => $statements], true).PHP_EOL, FILE_APPEND);
         $buf = '';
         foreach ($statements as $stmt) {
-          if (false === ($written = fwrite($this->_socket,
-                                            EvalWorker::EVALUATE . $stmt))) {
+
+          $request = array('method' => 'evalAndPrint', 'body' => $stmt);
+          $written = SocketComm::sendRequest($this->socket, $request);
+
+          if ($written === false) {
             throw new \RuntimeException('Socket error: failed to write data');
           }
+          else if ($written > 0) {
+            $response = SocketComm::readResponse($this->socket);
 
-          if ($written > 0) {
-            $status = fread($this->_socket, 1);
-            if ($status == EvalWorker::EXITED) {
-              readline_write_history($historyFile);
-              echo "\n";
-              exit(0);
-            } elseif ($status == EvalWorker::FAILED) {
-              break;
+            if (! is_object($response)) {
+                $this->reader->saveHistory();
+                echo "Exit: corrupted response, request was \n";
+                var_export($request);
+                echo "\n";
+                exit(255);
+            } else {
+              switch ($response->status) {
+                case SocketComm::STATUS_OK:   break;
+                case SocketComm::STATUS_FAILED: break 2;
+                case SocketComm::STATUS_EXITED:
+                  $this->reader->saveHistory();
+                  if ($ctrlD) {
+                    echo "\n";
+                  }
+                  exit(0);
+              }
             }
           }
         }
       }
-    }
+
+    } // eo for
   }
 
   /**
-   * Clear the input buffer.
+   * ctrl+c like behavior, used by Reader
+   * @param int $code SIGINT = 2 on osx
    */
-  public function clear() {
-    // FIXME: I'd love to have this send \r to readline so it puts the user on a blank line
-    $this->_clear = true;
+  public function clear($code)
+  {
+    /**
+     * ctrl+c cases:
+     *  "Cancelling...":
+     *    - $line is not empty, $buf is empty
+     *    - We don't draw the prompt, b/c we're past the EVALUATE stage.
+     *  User typed something, but hasn't hit enter to evaluate:
+     *    - $line and $buf are not empty
+     *    - We need to redraw the prompt
+     *  User hasn't typed anything:
+     *    - $line and $buf are empty
+     *    - We need to redraw the prompt
+     */
+    $line = $this->reader->getLine();
+    $buf  = $this->reader->getBuffer();
+    if (empty($line) || trim($buf) !== '') {
+        Cursor::clear('line');
+        echo $this->reader->getPrefix();
+        $this->reader->setLine(null);
+    }
   }
 
   /**
@@ -117,76 +171,53 @@ class ReadlineClient {
    * list of completions, in order to complete on functions &
    * variables in the REPL scope.
    */
-  public function completion_function($word) {
-    $rl_info = readline_info();
-    $line    = substr($rl_info['line_buffer'], 0, $rl_info['point']);
-
-    /* HACK. Ugh. */
-    if (false !== ($pos = strpos($word, '['))) {
-      $prefix = substr($word, 0, $pos + 1);
-    } else if (false !== ($pos = strpos($word, '::'))) {
-      $prefix = substr($word, 0, $pos + 2);
-    #} else if (false !== ($pos = strpos($word, '\\'))) {
-    #  $prefix =
-    #} else if (0 === stripos($line, 'use')) {
-    #  $prefi =
+  public function completionCallback($prefix)
+  {
+    $line = $this->reader->getLine();
+    if (empty($line)) {
+      return array();
+    }
+    /* get the word within the line, being completed */
+    $current  = $this->reader->getLineCurrent();
+    $fragment = substr($line, 0, $current);
+    if (($pos = strrpos($line, ' ')) !== false) {
+      $word = substr($line, $pos + 1, ($current - $pos));
     } else {
-      $prefix = '';
+      $word = $line;
     }
+    Debug::log(__FUNCTION__, compact('prefix', 'line', 'current', 'fragment', 'word'));
 
-    #print("\nbuffer={$rl_info['line_buffer']}\ncompleting=$word\nprefix=$prefix\n");
     /* Call the EvalWorker to perform completion */
-    #$send = json_encode(
-    $this->_write($this->_socket, EvalWorker::COMPLETE . $line);
-    $completions = $this->_read_unserialize();
+    $request = array(
+      'method'   => 'complete',
+      'body'     => compact('line', 'current', 'word'),
+    );
+    SocketComm::sendRequest($this->socket, $request);
 
-    #file_put_contents('/tmp/dbg', var_export(get_defined_vars(), true).PHP_EOL, FILE_APPEND);
-    /* HACK */
-    if ($prefix) {
-      $completions = array_map(
-        function ($str) use ($prefix) {
-          return $prefix . $str;
-        },
-        $completions
-      );
+    $response = SocketComm::readResponse($this->socket);
+    if (! $response || $response->status !== SocketComm::STATUS_OK) {
+       return array($word);
     }
-    return $completions;
-  }
+    #list($start, $end, $completions) = array($response->start, $response->end,
+    #                                         $response->completions);
 
-  /* TODO: refactor me */
-  private function _write($socket, $data) {
-    $total = strlen($data);
-    for ($written = 0; $written < $total; $written += $wrote) {
-      $wrote = fwrite($socket, substr($data, $written));
-      if ($wrote === false) {
-        throw new \RuntimeException(
-          sprintf('Socket error: wrote only %d of %d bytes.',
-                  $written, $total));
+    /* PHP's readline extension is not very configurable and tends
+     * to pick the wrong boundaries for the symbol to complete.  Fix
+     * up the returned completions accordingly. */
+    /*
+    $rl_start = $rl_info['point'] - strlen($word);
+    $rl_end = $rl_info['point'];
+    if(!$completions) return array($word);
+    if($start < $rl_start) {
+      foreach($completions as &$c) {
+        $c = substr($c, $rl_start - $start);
+      }
+    } elseif($start > $rl_start) {
+      foreach($completions as &$c) {
+        $c = substr($line, $rl_start, $start - $rl_start) . $c;
       }
     }
-    return $written;
-  }
-
-  private function _read($socket, $bytes) {
-    for ($read = ''; strlen($read) < $bytes; $read .= $fread) {
-      $fread = fread($socket, $bytes - strlen($read));
-    }
-    return $read;
-  }
-
-  private function _read_unserialize() {
-    /* Get response: expected to be one-byte opcode,
-     * EvalWorker::RESPONSE, four bytes giving length of message,
-     * and serialized data */
-    $status = $this->_read($this->_socket, 1);
-    if ($status !== EvalWorker::RESPONSE) {
-      throw new \RuntimeException(sprintf('Bad response: 0x%x',
-                                          ord($status)));
-    }
-    $length_packed   = $this->_read($this->_socket, 4);
-    $length_unpacked = unpack('N', $length_packed);
-    $length          = $length_unpacked[1];
-    $serialized      = $this->_read($this->_socket, $length);
-    return json_decode($serialized, true);
+    */
+    return $response->body->completions;
   }
 }
