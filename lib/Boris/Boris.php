@@ -11,7 +11,7 @@ class Boris
 {
   const VERSION = "1.1.0";
 
-  private $prompt;
+  private $prompt = "\033[1;35mphp\033[0m\033[0;37m>\033[0m ";
   private $historyFile;
   private $exports = array();
   private $startHooks = array();
@@ -25,15 +25,17 @@ class Boris
    * @param string $prompt, optional
    * @param string $historyFile, optional
    */
-  public function __construct($prompt = 'php> ', $historyFile = null)
+  public function __construct($prompt = null, $historyFile = null)
   {
-    $this->setPrompt($prompt);
+    if ($prompt !== null) {
+      $this->setPrompt($prompt);
+    }
+
     $this->historyFile = $historyFile
       ? $historyFile
-      : sprintf('%s/.boris_history', getenv('HOME'))
-      ;
-    $this->inspector = new Inspector\Colored();
-    $this->macros    = new Macros();
+      : sprintf('%s/.boris_history', getenv('HOME'));
+
+    $this->macros = new Macros();
   }
 
   /**
@@ -158,6 +160,24 @@ class Boris
    */
   public function start()
   {
+    if (! isset($this->inspector)) {
+      $this->inspector = new Inspector\Colored();
+    }
+
+    $this->displayWelcome();
+    $this->forkAndStart();
+  }
+
+  private function displayWelcome()
+  {
+    printf("Boris %s\n", self::VERSION);
+    printf("PHP %s\n", PHP_VERSION);
+    printf("%10s: Control+D or 'exit' or 'exit;'\n", 'Exit');
+    printf("%10s: Stored in vars \$_1, \$_2, \$_3\n", 'Results');
+  }
+
+  private function forkAndStart()
+  {
     declare(ticks = 1); // required "for the signal handler to function"
     pcntl_signal(SIGINT, SIG_IGN, true);
 
@@ -166,11 +186,6 @@ class Boris
       throw new \RuntimeException('Failed to create socket pair');
     }
 
-    $this->forkAndStart($pipes);
-  }
-
-  private function forkAndStart($pipes)
-  {
     $pid = pcntl_fork();
 
     if ($pid > 0) {

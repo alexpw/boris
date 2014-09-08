@@ -26,7 +26,8 @@ class SocketComm
     return self::writeMessage($socket, $response);
   }
 
-  public static function readResponse($socket) {
+  public static function readResponse($socket)
+  {
     return self::unpackSocket($socket);
   }
 
@@ -37,7 +38,13 @@ class SocketComm
     }
   }
 
-  public static function read($socket, $bytes)
+  public static function writeMessage($socket, $msg)
+  {
+    $frame = self::packMessage($msg);
+    return self::write($socket, $frame);
+  }
+
+  private static function read($socket, $bytes)
   {
     for ($read = ''; strlen($read) < $bytes; $read .= $fread) {
       $fread = @fread($socket, $bytes - strlen($read));
@@ -45,13 +52,7 @@ class SocketComm
     return $read;
   }
 
-  public static function writeMessage($socket, $msg)
-  {
-    $frame = self::packMessage($msg);
-    return self::write($socket, $frame);
-  }
-
-  public static function write($socket, $data)
+  private static function write($socket, $data)
   {
     $total = strlen($data);
     for ($written = 0; $written < $total; $written += $fwrite) {
@@ -75,19 +76,21 @@ class SocketComm
   {
     $length_packed   = substr($frame, 0, 4);
     $length_unpacked = unpack('N', $length_packed);
-    $json_msg = substr($frame, 4, $length_unpacked[1]);
+    $json_msg        = substr($frame, 4, $length_unpacked[1]);
     return json_decode($json_msg);
   }
 
   private static function unpackSocket($socket)
   {
-    $length_packed   = fread($socket, 4);
-    $length_unpacked = unpack('N', $length_packed);
-    $json_msg        = self::read($socket, $length_unpacked[1]);
-    return json_decode($json_msg);
+    $length_packed = fread($socket, 4);
+    if (strlen($length_packed) === 4) {
+      $length_unpacked = unpack('N', $length_packed);
+      $json_msg        = self::read($socket, $length_unpacked[1]);
+      return json_decode($json_msg);
+    }
   }
 
-  public static function readStream($socket)
+  private static function readStream($socket)
   {
     $read   = array($socket);
     $except = array($socket);

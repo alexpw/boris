@@ -35,7 +35,7 @@ class EvalWorker
   {
     $this->socket    = $socket;
     $this->inspector = new Inspector\Dump();
-    $this->completer = new Completer($this);
+    $this->completer = new Autocomplete\Completer($this);
     stream_set_blocking($socket, 0);
   }
 
@@ -107,10 +107,9 @@ class EvalWorker
 
     for (;;) {
       declare(ticks = 1); // required "for the signal handler to function"
+
       // don't exit on ctrl-c
       pcntl_signal(SIGINT, SIG_IGN, true);
-
-      $this->cancelled = false;
 
       if (null === ($request = SocketComm::waitForRequest($this->socket))) {
         continue;
@@ -120,26 +119,24 @@ class EvalWorker
 
         $method   = $request->method;
         $response = $this->$method($request->body, $scope);
-
         SocketComm::sendResponse($this->socket, $request, $response);
 
-      } else { // No matching ACTION
-        throw new \RuntimeException(sprintf("Bad request action", $input[0]));
-        $response = array('status' => SocketComm::STATUS_EXITED);
+      } else {
+        throw new \RuntimeException("Bad request method {$request->method}");
       }
 
       if (! isset($response['status']) ||
                   $response['status'] === SocketComm::STATUS_EXITED) {
         exit(0);
       }
-
-    } // eo for
+    }
   }
 
   private function complete($input, &$scope)
   {
     $status = SocketComm::STATUS_OK;
     $body   = $this->completer->getCompletions($input->line, true, $scope);
+    Debug::log(__FUNCTION__, compact('status', 'body'));
     return compact('status', 'body');
   }
 
@@ -156,6 +153,9 @@ class EvalWorker
 
   private function forkAndEval($input, &$scope)
   {
+    declare(ticks = 1); // required "for the signal handler to function"
+
+    $this->cancelled = false;
     $result = NULL;
     $status = SocketComm::STATUS_OK;
 
@@ -187,8 +187,6 @@ class EvalWorker
       // undo ctrl-c signal handling ready for user code execution
       pcntl_signal(SIGINT, SIG_DFL, true);
       $pid = posix_getpid();
-
-      Debug::log('input', $input);
 
       $input  = $this->transform($input);
       $result = $this->evalInScope($input, $scope);
@@ -230,10 +228,16 @@ class EvalWorker
       'result'    => 1,
     );
     extract($scope);
+    if (! isset($_1)) $_1 = null;
+    if (! isset($_2)) $_2 = null;
+    if (! isset($_3)) $_3 = null;
     $result = eval($input);
     while (is_string($result) && stripos($result, 'return ') === 0) {
       $result = eval($result);
     }
+    $_3 = $_2;
+    $_2 = $_1;
+    $_1 = $result;
     $scope = array_diff_key(get_defined_vars(), $unsetKeys);
     return $result;
   }

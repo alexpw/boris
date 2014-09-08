@@ -14,6 +14,7 @@ use Hoa\Console\Window;
 class Readliner extends Readline {
 
   private $historyFile;
+  private $workingLine;
 
   /**
    * Add key mappings.
@@ -59,7 +60,7 @@ class Readliner extends Readline {
       $lines = file($file, FILE_IGNORE_NEW_LINES);
       $size  = count($lines);
       $this->_history        = $lines;
-      $this->_historyCurrent = $size - 1;
+      $this->_historyCurrent = $size;
       $this->_historySize    = $size;
     }
   }
@@ -70,14 +71,17 @@ class Readliner extends Readline {
    * @access  public
    * @return  void
    */
-  public function saveHistory()
+  public function saveHistory($blacklist = array())
   {
     if (is_writeable($this->historyFile)) {
+      if (! is_array($blacklist)) {
+        $blacklist = array();
+      }
       $hs = array();
       $prev = null;
       foreach ($this->_history as $h) {
         // de-dupe: the user thinks up/down is broken/lagged; it's pointless.
-        if ($h !== $prev) {
+        if ($h !== $prev && ! in_array($h, $blacklist)) {
           $prev = $h;
           $hs[] = $h;
         }
@@ -87,18 +91,120 @@ class Readliner extends Readline {
   }
 
   /**
+   * Newline binding.
+   *
+   * @access  public
+   * @param   \Hoa\Console\Readline  $self    Self.
+   * @return  int
+   */
+  public function _bindNewline(Readline $self)
+  {
+    $self->addHistory($self->getLine());
+    return static::STATE_BREAK;
+  }
+
+  /**
+   * Add an entry in the history.
+   *
+   * @access  public
+   * @param   string  $line    Line.
+   * @return  void
+   */
+  public function addHistory($line = null)
+  {
+    if (empty($line)) {
+      return;
+    }
+    $this->_history[] = $line;
+    if (count($this->_history) > 100) {
+      array_shift($this->_history);
+    } else {
+      $this->_historySize++;
+      $this->_historyCurrent++;
+    }
+  }
+
+  /**
+   * Go backward in the history.
+   *
+   * @access  public
+   * @return  string
+   */
+  public function previousHistory()
+  {
+    if (0 >= $this->_historyCurrent) {
+        return $this->getHistory(0);
+    }
+    return $this->getHistory(--$this->_historyCurrent);
+  }
+  /**
    * Go forward in the history.
    *
    * @access  public
    * @return  string
    */
-  public function nextHistory() {
+  public function nextHistory()
+  {
+    if ($this->_historyCurrent === $this->_historySize) {
+        return $this->workingLine;
+    }
+    return $this->getHistory(++$this->_historyCurrent);
+  }
 
-      if ($this->_historyCurrent + 1 >= $this->_historySize) {
-          return $this->getLine();
-      }
+  /**
+   * Down arrow binding.
+   * Go forward in the history.
+   *
+   * @access  public
+   * @param   \Hoa\Console\Readline  $self    Self.
+   * @return  int
+   */
+  public function _bindArrowDown(Readline $self)
+  {
+    if (0 === (static::STATE_CONTINUE & static::STATE_NO_ECHO)) {
+      Cursor::clear('line');
+      echo $self->getPrefix();
+    }
 
-      return $this->getHistory(++$this->_historyCurrent);
+    // User is already at the newest line and must be confused
+    if ($this->_historyCurrent === $this->_historySize) {
+      $buffer = $this->workingLine = $this->getLine();
+    // User wants to resume where they left off before looking at history
+    } else if ($this->_historyCurrent + 1 === $this->_historySize) {
+      $this->_historyCurrent++;
+      $buffer = $this->workingLine;
+    // User wants to venture into the past
+    } else {
+      $buffer = $self->nextHistory();
+    }
+    $self->setLine($buffer);
+    $self->setBuffer($buffer);
+    return static::STATE_CONTINUE;
+  }
+
+  /**
+   * Up arrow binding.
+   * Go backward in the history.
+   *
+   * @access  public
+   * @param   \Hoa\Console\Readline  $self    Self.
+   * @return  int
+   */
+  public function _bindArrowUp(Readline $self)
+  {
+    if (0 === (static::STATE_CONTINUE & static::STATE_NO_ECHO)) {
+      Cursor::clear('line');
+      echo $self->getPrefix();
+    }
+    // User is working on something new, but decides to look at history
+    if ($this->_historyCurrent === $this->_historySize) {
+      // Save the current line so we can resume it
+      $this->workingLine = $this->getLine();
+    }
+    $buffer = $self->previousHistory();
+    $self->setBuffer($buffer);
+    $self->setLine($buffer);
+    return static::STATE_CONTINUE;
   }
 
   /**
@@ -136,11 +242,11 @@ class Readliner extends Readline {
         return $state;
     }
 
-    for ($i = 0, $max = count($words[0]);
-         $i < $max && $current > $words[0][$i][1];
+    for ($i = 0, $max = count($words[1]);
+         $i < $max && $current > $words[1][$i][1];
          ++$i) {
     }
-    $word = $words[0][$i - 1];
+    $word = $words[1][$i - 1];
 
     if ('' === trim($word[0])) {
         return $state;

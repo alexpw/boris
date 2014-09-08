@@ -11,6 +11,8 @@
 
 namespace Boris\Inspector;
 
+use Boris\Debug as Debug;;
+
 /**
  * Identifies data types in data structures and syntax highlights them.
  */
@@ -88,7 +90,12 @@ class Colored implements Inspector
 
   public function inspect($variable)
   {
-    return $this->_dump($variable);
+    return preg_replace(
+      '/^/m',
+      $this->_colorize('comment', '// '),
+      $this->_dump($variable)
+    );
+    #return $this->_dump($variable);
   }
 
   /**
@@ -254,17 +261,27 @@ class Colored implements Inspector
 
   private function _colorize($type, $value)
   {
-    if (!empty($this->_colorMap[$type])) {
+    $colorName = null;
+    if (isset($this->_colorMap[$type])) {
       $colorName = $this->_colorMap[$type];
-    } else {
-      $colorName = $this->_colorMap['default'];
+      if (is_array($colorName)) {
+        if (array_key_exists($value, $colorName['values'])) {
+          $colorName = $colorName['values'][$value];
+        } else if (isset($colorName['default'])) {
+          $colorName = $colorName['default'];
+        }
+      }
     }
 
-    return sprintf(
-      "%s%s\033[0m",
-      static::$TERM_COLORS[$colorName],
-      $value
-    );
+    if (! is_string($colorName)) {
+      if (isset($this->_colorMap['default'])) {
+        $colorName = $this->_colorMap['default'];
+      } else {
+        $colorName = 'none';
+      }
+    }
+
+    return sprintf("%s%s\033[0m", static::$TERM_COLORS[$colorName], $value);
   }
 
   private function _isSeen($value, $seen)

@@ -1,6 +1,6 @@
 <?php
 
-namespace Boris\Autocomplete;
+namespace Boris\Autocomplete\Completions;
 
 /**
  * A completion source defines how to look up a kind of PHP symbol.

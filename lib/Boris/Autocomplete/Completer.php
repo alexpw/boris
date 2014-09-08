@@ -6,6 +6,8 @@ namespace Boris\Autocomplete;
 
 require "Completions.php";
 
+#use Completions as Completions;
+
 /**
  * Performs context-sensitive completion and information lookup.
  */
@@ -284,8 +286,10 @@ class Completer
       return $info->text;
     } else {
       /* Avoid evaluating nonsense in source buffers */
-      if(!$evaluate) return null;
-      list($response, $result) = @$this->evalWorker->forkAndEval('return ' . $info->text . ';', $scope);
+      if (!$evaluate) return null;
+      $input = 'return ' . $info->text . ';';
+      list($status, $result) = @$this->evalWorker->forkAndEval($input, $scope);
+      Debug::log(__FUNCTION__, compact('input', 'scope', 'status', 'result'));
       if ($response !== SocketComm::STATUS_OK) return null;
       return $result;
     }

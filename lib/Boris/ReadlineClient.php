@@ -80,7 +80,7 @@ class ReadlineClient
       $prompter = sprintf(
         '[%d] %s',
         $lineno,
-        ($buf == ''
+        ($buf === ''
           ? $prompt
           : str_pad('*> ', strlen($prompt), ' ', STR_PAD_LEFT))
       );
@@ -108,22 +108,21 @@ class ReadlineClient
 
           if ($written === false) {
             throw new \RuntimeException('Socket error: failed to write data');
-          }
-          else if ($written > 0) {
+          } else if ($written > 0) {
             $response = SocketComm::readResponse($this->socket);
 
             if (! is_object($response)) {
                 $this->reader->saveHistory();
-                echo "Exit: corrupted response, request was \n";
+                echo "Exiting: corrupted response, request was \n";
                 var_export($request);
                 echo "\n";
                 exit(255);
             } else {
               switch ($response->status) {
-                case SocketComm::STATUS_OK:   break;
+                case SocketComm::STATUS_OK:     break;
                 case SocketComm::STATUS_FAILED: break 2;
                 case SocketComm::STATUS_EXITED:
-                  $this->reader->saveHistory();
+                  $this->reader->saveHistory(array('exit','exit;','exit(0'));
                   if ($ctrlD) {
                     echo "\n";
                   }
@@ -181,6 +180,7 @@ class ReadlineClient
     $current  = $this->reader->getLineCurrent();
     $fragment = substr($line, 0, $current);
     if (($pos = strrpos($line, ' ')) !== false) {
+      $pos++;
       $word = substr($line, $pos + 1, ($current - $pos));
     } else {
       $word = $line;
@@ -218,6 +218,9 @@ class ReadlineClient
       }
     }
     */
-    return $response->body->completions;
+    if (! empty($response->body)) {
+      return $response->body->completions;
+    }
+    return array();
   }
 }
