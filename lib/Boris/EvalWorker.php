@@ -151,7 +151,10 @@ class EvalWorker
     return array('status' => $status);
   }
 
-  private function forkAndEval($input, &$scope)
+  /**
+   * Currently called by compeleter
+   */
+  public function forkAndEval($input, &$scope)
   {
     declare(ticks = 1); // required "for the signal handler to function"
 

@@ -6,6 +6,9 @@ namespace Boris\Autocomplete;
 
 require "Completions.php";
 
+use Boris\SocketComm;
+use Boris\Debug;
+
 #use Completions as Completions;
 
 /**
@@ -18,17 +21,17 @@ class Completer
   private $evalWorker;
   private $parser;
   private static $sources = array(
-    'variable'       => 'Boris\Completions\Variables',
-    'function'       => 'Boris\Completions\Functions',
-    'constant'       => 'Boris\Completions\Constant',
-    'keyword'        => 'Boris\Completions\Keywords',
-    'class'          => 'Boris\Completions\ClassNames',
-    'interface'      => 'Boris\Completions\Interfaces',
-    'trait'          => 'Boris\Completions\Traits',
-    'method'         => 'Boris\Completions\AllMethods',
-    'property'       => 'Boris\Completions\AllProperties',
-    'staticproperty' => 'Boris\Completions\AllStaticProperties',
-    'classconstant'  => 'Boris\Completions\AllClassConstants',
+    'variable'       => 'Boris\Autocomplete\Completions\Variables',
+    'function'       => 'Boris\Autocomplete\Completions\Functions',
+    'constant'       => 'Boris\Autocomplete\Completions\Constant',
+    'keyword'        => 'Boris\Autocomplete\Completions\Keywords',
+    'class'          => 'Boris\Autocomplete\Completions\ClassNames',
+    'interface'      => 'Boris\Autocomplete\Completions\Interfaces',
+    'trait'          => 'Boris\Autocomplete\Completions\Traits',
+    'method'         => 'Boris\Autocomplete\Completions\AllMethods',
+    'property'       => 'Boris\Autocomplete\Completions\AllProperties',
+    'staticproperty' => 'Boris\Autocomplete\Completions\AllStaticProperties',
+    'classconstant'  => 'Boris\Autocomplete\Completions\AllClassConstants',
   );
 
   public function __construct($evalWorker) {
@@ -290,7 +293,7 @@ class Completer
       $input = 'return ' . $info->text . ';';
       list($status, $result) = @$this->evalWorker->forkAndEval($input, $scope);
       Debug::log(__FUNCTION__, compact('input', 'scope', 'status', 'result'));
-      if ($response !== SocketComm::STATUS_OK) return null;
+      if ($status !== SocketComm::STATUS_OK) return null;
       return $result;
     }
   }

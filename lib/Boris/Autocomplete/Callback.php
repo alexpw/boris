@@ -41,6 +41,6 @@ class Callback implements Autocompleter {
      */
     public function getWordDefinition()
 	{
-		return '\s*([^\s]+)\b';
+		return '\s*([^\s]+)\s*?';
     }
 }

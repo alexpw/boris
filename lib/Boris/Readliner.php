@@ -100,6 +100,7 @@ class Readliner extends Readline {
   public function _bindNewline(Readline $self)
   {
     $self->addHistory($self->getLine());
+    $this->_historyCurrent = $this->_historySize;
     return static::STATE_BREAK;
   }
 
@@ -118,10 +119,8 @@ class Readliner extends Readline {
     $this->_history[] = $line;
     if (count($this->_history) > 100) {
       array_shift($this->_history);
-    } else {
-      $this->_historySize++;
-      $this->_historyCurrent++;
     }
+    $this->_historySize = count($this->_history);
   }
 
   /**
@@ -252,22 +251,38 @@ class Readliner extends Readline {
         return $state;
     }
 
-    $prefix   = mb_substr($word[0], 0, $current - $word[1]);
-    Debug::log('prefix', compact('line','words','word','prefix'));
+    $prefix = mb_substr($word[0], 0, $current - $word[1]);
+    Debug::log('prefix', compact('line','current','words','word','prefix'));
 
     $solution = $autocompleter->complete($prefix);
+    Debug::log('solution', $solution);
 
     if (null === $solution || empty($solution)) {
         return $state;
     }
-    $length   = mb_strlen($prefix);
 
+    if (preg_match('/[\S]+(::|\->)([\S]*)/', $prefix, $m, PREG_OFFSET_CAPTURE)) {
+      //Debug::log('matchPrefix', compact('prefix', 'm'));
+      $suffixLength = mb_strlen($m[2][0]);
+      $prefix       = mb_substr($prefix, -$suffixLength);
+      $tail         = mb_substr($line, $current);
+      $head         = mb_substr($line, 0, $current - $suffixLength);
+      $line         = $head . $tail;
+      $current     -= $suffixLength;
+      $length       = $suffixLength;
+    } else {
+      $length   = mb_strlen($prefix);
+      $tail     = mb_substr($line, $current);
+      $head     = mb_substr($line, 0, $current - $length);
+      $line     = $head . $tail;
+      $current -= $length;
+    }
+
+    //Debug::log('completionBefore', compact('prefix','line','current','tail','length'));
     if (is_array($solution)) {
       if (count($solution) === 1) {
-        $tail     = mb_substr($line, $current);
-        $current -= $length;
 
-        $line = mb_substr($line, 0, $current) . $solution[0] . $tail;
+        $line = $head . $solution[0] . $tail;
         $self->setLine($line);
         $self->setLineCurrent($current + mb_strlen($solution[0]));
         $self->setBuffer($line);
@@ -278,7 +293,11 @@ class Readliner extends Readline {
         echo $tail;
         Cursor::move('left', mb_strlen($tail));
 
-        Debug::log('completion', compact('prefix','line','current','tail','length'));
+        Debug::log('completion', array(
+          'line'    =>$self->getLine(),
+          'current' =>$self->getLineCurrent(),
+          'buffer'  =>$self->getBuffer(),
+        ));
         return $state;
       }
 
@@ -307,10 +326,15 @@ class Readliner extends Readline {
       $mLines   = (int) ceil(($count + 1) / $mColumns);
       --$mColumns;
 
-      if (0 > $window['y'] - $cursor['y'] - $mLines) {
-
-          Window::scroll('up', $mLines);
-          Cursor::move('up', $mLines);
+      $pos = Cursor::getPosition();
+      if (($window['y'] - $cursor['y'] - $mLines) < 0) {
+        #Debug::log("here", compact('window','cursor','mLines','mColumns'));
+        echo str_repeat("\n", $mLines + 1);
+        Cursor::move('up', $mLines);
+        Cursor::clear('LEFT');
+        echo $this->getPrefix() . $this->getLine() . "\n";
+        Cursor::move('up LEFT');
+        Cursor::move('right', $pos['x'] - 1);
       }
 
       Cursor::save();
@@ -339,9 +363,8 @@ class Readliner extends Readline {
       $mColumn  = -1;
       $mLine    = -1;
       $coord    = -1;
-      $unselect = function ( ) use ( &$mColumn, &$mLine, &$coord,
-                                     &$_solution, &$cWidth ) {
-
+      $unselect = function () use ( &$mColumn, &$mLine, &$coord,
+                                    &$_solution, &$cWidth ) {
           Cursor::save();
           Cursor::hide();
           Cursor::move('down LEFT');
@@ -350,11 +373,9 @@ class Readliner extends Readline {
           echo "\033[0m" . $_solution[$coord] . "\033[0m";
           Cursor::restore();
           Cursor::show();
-
-          return;
       };
-      $select = function () use (&$mColumn, &$mLine, &$coord,
-                                 &$_solution, &$cWidth) {
+      $select = function () use ( &$mColumn, &$mLine, &$coord,
+                                  &$_solution, &$cWidth ) {
           Cursor::save();
           Cursor::hide();
           Cursor::move('down LEFT');
@@ -435,10 +456,8 @@ class Readliner extends Readline {
               case "\n":
                   if (-1 !== $mColumn && -1 !== $mLine) {
 
-                      $tail     = mb_substr($line, $current);
-                      $current -= $length;
                       $self->setLine(
-                          mb_substr($line, 0, $current) .
+                          $head .
                           $solution[$coord] .
                           $tail
                       );
@@ -472,27 +491,7 @@ class Readliner extends Readline {
                   break 2;
           }
       }
-
-        return $state;
+      return $state;
     }
-
-    $tail     = mb_substr($line, $current);
-    $current -= $length;
-    $self->setLine(
-        mb_substr($line, 0, $current) .
-        $solution .
-        $tail
-    );
-    $self->setLineCurrent(
-        $current + mb_strlen($solution)
-    );
-
-    Cursor::move('left', $length);
-    echo $solution;
-    Cursor::clear('right');
-    echo $tail;
-    Cursor::move('left', mb_strlen($tail));
-
-    return $state;
   }
 }

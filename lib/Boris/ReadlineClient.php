@@ -75,14 +75,18 @@ class ReadlineClient
     $buf    = '';
     $lineno = 1;
 
+    // remove terminal color codes
+    $cleanPrompt = $prompt;
+    $cleanPrompt = preg_replace('/\\033\[\d;\d+m/', '', $cleanPrompt);
+    $cleanPrompt = preg_replace('/\\033\[0m/',      '', $cleanPrompt);
+
+    $promptMore = str_pad('*> ', mb_strlen($cleanPrompt), ' ', STR_PAD_LEFT);
+
     for (;;) {
 
-      $prompter = sprintf(
-        '[%d] %s',
+      $prompter = sprintf('[%d] %s',
         $lineno,
-        ($buf === ''
-          ? $prompt
-          : str_pad('*> ', strlen($prompt), ' ', STR_PAD_LEFT))
+        ($buf === '' ? $prompt : $promptMore)
       );
       $line = $this->reader->readLine($prompter);
 
@@ -95,6 +99,7 @@ class ReadlineClient
         $buf = '';
       }
 
+      Debug::log('line', $line);
       $buf .= "$line\n";
 
       if ($statements = $parser->statements($buf)) {
@@ -102,6 +107,7 @@ class ReadlineClient
 
         $buf = '';
         foreach ($statements as $stmt) {
+        Debug::log('stmt', $stmt);
 
           $request = array('method' => 'evalAndPrint', 'body' => $stmt);
           $written = SocketComm::sendRequest($this->socket, $request);
@@ -186,6 +192,7 @@ class ReadlineClient
       $word = $line;
     }
     Debug::log(__FUNCTION__, compact('prefix', 'line', 'current', 'fragment', 'word'));
+    $line = $fragment;
 
     /* Call the EvalWorker to perform completion */
     $request = array(
