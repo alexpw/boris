@@ -4,7 +4,11 @@
 
 namespace Boris\Autocomplete;
 
-require "Completions.php";
+if (PHP_MAJOR_VERSION > 3) {
+  require "Completions.php";   // traits
+} else {
+  require "Completions53.php"; // make do
+}
 
 use Boris\SocketComm;
 use Boris\Debug;
@@ -16,8 +20,6 @@ use Boris\Debug;
  */
 class Completer
 {
-  use Completions\AnnotateSignature;
-
   private $evalWorker;
   private $parser;
   private static $sources = array(
@@ -35,6 +37,9 @@ class Completer
   );
 
   public function __construct($evalWorker) {
+    if (PHP_MAJOR_VERSION < 4) {
+      unset(self::$sources['trait']);
+    }
     $this->evalWorker = $evalWorker;
     $this->parser = new Parser();
   }
@@ -155,10 +160,13 @@ class Completer
   }
 
   public function whoUses($trait) {
+    if (PHP_MAJOR_VERSION < 4) {
+      return array();
+    }
     assert (is_string($trait));
     $source = new Completions\MergeSources(array(
       new Completions\ClassNames,
-      new Completions\Traits,
+      //new Completions\Traits,
     ));
     return self::annotations(
       array_filter($source->symbols(), function ($symbol) use ($trait) {

@@ -102,14 +102,13 @@ class ReadlineClient
       }
 
       $buf .= "$line\n";
-      Debug::log('line+buffer', compact('line','buf'));
 
       if ($statements = $parser->statements($buf)) {
         ++$lineno;
 
         $buf = '';
         foreach ($statements as $stmt) {
-          Debug::log('stmt', $stmt);
+          // Add complete stmts to the history, instead of just 1 line.
           $this->reader->addHistory($stmt);
 
           $request = array('method' => 'evalAndPrint', 'body' => $stmt);
