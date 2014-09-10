@@ -114,7 +114,7 @@ class Readliner extends Readline
     return $return;
   }
 
-  public function _read($length = 1)
+  public function _read($length = 512)
   {
     return fread(STDIN, $length);
   }
@@ -374,10 +374,10 @@ class Readliner extends Readline
     }
 
     $prefix = mb_substr($word[0], 0, $current - $word[1]);
-    Debug::log('prefix', compact('line','current','words','word','prefix'));
+    //Debug::log('prefix', compact('line','current','words','word','prefix'));
 
     $solution = $autocompleter->complete($prefix);
-    Debug::log('solution', $solution);
+    //Debug::log('solution', $solution);
 
     if (null === $solution || empty($solution)) {
         return $state;
@@ -400,7 +400,7 @@ class Readliner extends Readline
       $current -= $length;
     }
 
-    //Debug::log('completionBefore', compact('prefix','line','current','tail','length'));
+    //Debug::log('completionSetup', compact('prefix','line','current','head','tail','length'));
     if (is_array($solution)) {
       if (count($solution) === 1) {
 
@@ -415,11 +415,11 @@ class Readliner extends Readline
         echo $tail;
         Cursor::move('left', mb_strlen($tail));
 
-        Debug::log('completion', array(
-          'line'    =>$self->getLine(),
-          'current' =>$self->getLineCurrent(),
-          'buffer'  =>$self->getBuffer(),
-        ));
+        #Debug::log('completion', array(
+        #  'line'    =>$self->getLine(),
+        #  'current' =>$self->getLineCurrent(),
+        #  'buffer'  =>$self->getBuffer(),
+        #));
         return $state;
       }
 

@@ -3,7 +3,6 @@
 /* vim: set shiftwidth=2 expandtab softtabstop=2: */
 
 namespace Boris\Autocomplete\Completions;
-return;
 
 /**
  * A completion source defines how to look up a kind of PHP symbol.

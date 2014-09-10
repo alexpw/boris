@@ -9,6 +9,7 @@ if (PHP_MAJOR_VERSION > 3) {
 } else {
   require "Completions53.php"; // make do
 }
+use Boris\Autocomplete\Completions;
 
 use Boris\SocketComm;
 use Boris\Debug;

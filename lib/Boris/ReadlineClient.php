@@ -193,7 +193,7 @@ class ReadlineClient
     } else {
       $word = $line;
     }
-    Debug::log(__FUNCTION__, compact('prefix', 'line', 'current', 'fragment', 'word'));
+    #Debug::log(__FUNCTION__, compact('prefix', 'line', 'current', 'fragment', 'word'));
     $line = $fragment;
 
     /* Call the EvalWorker to perform completion */
