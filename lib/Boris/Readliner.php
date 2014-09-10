@@ -213,9 +213,9 @@ class Readliner extends Readline
       return;
     }
     if (preg_match('/^return /', $line)) {
-      $line = trim(substr($line, 7));
+      $line = substr($line, 7);
     }
-    $this->_history[] = $line;
+    $this->_history[] = rtrim($line);
     if (count($this->_history) > 100) {
       array_shift($this->_history);
     }
@@ -308,6 +308,7 @@ class Readliner extends Readline
     $mLines = substr_count($line, "\n");
     Cursor::move('up', $mLines);
     Cursor::clear('LEFT');
+    Cursor::clear('down', $mLines+1);
 
     $buffer = $self->previousHistory();
     $self->setBuffer($buffer);
@@ -447,6 +448,7 @@ class Readliner extends Readline
       $mColumns = (int) floor($wWidth / ($cWidth + 2));
       $mLines   = (int) ceil(($count + 1) / $mColumns);
       --$mColumns;
+      //Debug::log('window', compact('window','cursor','wWidth','cWidth','mColumns','mLines'));
 
       $pos = Cursor::getPosition();
       if (($window['y'] - $cursor['y'] - $mLines) < 0) {
