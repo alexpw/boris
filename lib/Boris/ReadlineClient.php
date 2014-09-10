@@ -81,16 +81,18 @@ class ReadlineClient
     $cleanPrompt = preg_replace('/\\033\[0m/',      '', $cleanPrompt);
 
     $promptMore = str_pad('*> ', mb_strlen($cleanPrompt), ' ', STR_PAD_LEFT);
+    $promptMore = str_replace('*', "\033[0;31m*\033[0m", $promptMore);
 
     for (;;) {
 
-      $prompter = sprintf('[%d] %s',
-        $lineno,
-        ($buf === '' ? $prompt : $promptMore)
-      );
-      $line = $this->reader->readLine($prompter);
+      $prompter     = sprintf('[%d] %s', $lineno, $prompt);
+      $prompterMore = sprintf('[%d] %s', $lineno, $promptMore);
 
-      $ctrlD = $line === false;
+      $line = $this->reader->readLine(
+        ($buf ? $prompterMore : $prompter), $prompterMore
+      );
+
+      $ctrlD = ($line === false);
       // we want both of these to act like exit(0):
       // - readline return false on ctrl-d
       // - user shortcut 'exit'... (must be done here, b/c $parser waits for ';'
@@ -99,15 +101,16 @@ class ReadlineClient
         $buf = '';
       }
 
-      Debug::log('line', $line);
       $buf .= "$line\n";
+      Debug::log('line+buffer', compact('line','buf'));
 
       if ($statements = $parser->statements($buf)) {
         ++$lineno;
 
         $buf = '';
         foreach ($statements as $stmt) {
-        Debug::log('stmt', $stmt);
+          Debug::log('stmt', $stmt);
+          $this->reader->addHistory($stmt);
 
           $request = array('method' => 'evalAndPrint', 'body' => $stmt);
           $written = SocketComm::sendRequest($this->socket, $request);

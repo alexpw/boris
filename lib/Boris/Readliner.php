@@ -7,12 +7,14 @@ namespace Boris;
 use Hoa\Console\Readline\Readline as Readline;
 use Hoa\Console\Cursor;
 use Hoa\Console\Window;
+use Hoa\Console;
 
 /**
  * Add a few features to Hoa's Readline.
  */
-class Readliner extends Readline {
-
+class Readliner extends Readline
+{
+  private $prefixMore;
   private $historyFile;
   private $workingLine;
 
@@ -26,6 +28,95 @@ class Readliner extends Readline {
     $this->addMapping('\C-D', array($this, 'bindEOT'));
     $this->addMapping('\C-L', array($this, 'bindClear'));
     #$this->addMapping('\C-P', array($this, 'bindClear'));
+  }
+  public function setPrefixMore($v)
+  {
+    $this->prefixMore = $v;
+  }
+
+  public function readLine($prefix = null, $prefixMore = null)
+  {
+    if (feof(STDIN)) {
+        return false;
+    }
+    $direct = Console::isDirect(STDIN);
+
+    if (false === $direct || OS_WIN) {
+        $out = fgets(STDIN);
+        if (false === $out) {
+            return false;
+        }
+        $out = substr($out, 0, -1);
+
+        if (true === $direct) {
+            echo $prefix;
+        } else {
+            echo $prefix, $out, "\n";
+        }
+        return $out;
+    }
+
+    $this->resetLine();
+    $this->setPrefix($prefix);
+    $this->setPrefixMore($prefixMore);
+    $read = array(STDIN);
+    echo $prefix;
+
+    while (true) {
+        @stream_select($read, $write, $except, 30, 0);
+
+        if (empty($read)) {
+            $read = array(STDIN);
+            continue;
+        }
+
+        $char = $this->_read(1);
+        if ($char === "\033") {
+          $char .= $this->_read(2);
+        }
+        $this->_buffer = $char;
+        $return        = $this->_readLine($char);
+
+        if (0 === ($return & self::STATE_NO_ECHO)) {
+            echo $this->_buffer;
+        }
+        if (0 !== ($return & self::STATE_BREAK)) {
+            break;
+        }
+    }
+    return $this->getLine();
+  }
+
+  public function _readLine($char)
+  {
+    if (isset($this->_mapping[$char]) && is_callable($this->_mapping[$char])) {
+      $mapping = $this->_mapping[$char];
+      $return  = $mapping($this);
+    } else {
+      if (isset($this->_mapping[$char])) {
+        $this->_buffer = $this->_mapping[$char];
+      }
+      if ($this->getLineLength() == $this->getLineCurrent()) {
+
+        $this->appendLine($this->_buffer);
+        $return = static::STATE_CONTINUE;
+      } else {
+        $this->insertLine($this->_buffer);
+        $tail = mb_substr($this->getLine(), $this->getLineCurrent() - 1);
+
+        $this->_buffer = "\033[K" . $tail . str_repeat(
+          "\033[D",
+          mb_strlen($tail) - 1
+        );
+        $return = static::STATE_CONTINUE;
+      }
+    }
+    return $return;
+  }
+
+  public function _read($length = 1)
+  {
+    return fread(STDIN, $length);
   }
 
   /**
@@ -57,7 +148,14 @@ class Readliner extends Readline {
   {
     if (is_readable($file)) {
       $this->historyFile = $file;
-      $lines = file($file, FILE_IGNORE_NEW_LINES);
+
+      $f = fopen($file, 'r');
+      $lines = array();
+      while (($line = fgets($f)) !== false) {
+        $lines[] = json_decode($line);
+      }
+      //$lines = file($file, FILE_IGNORE_NEW_LINES);
+
       $size  = count($lines);
       $this->_history        = $lines;
       $this->_historyCurrent = $size;
@@ -81,9 +179,9 @@ class Readliner extends Readline {
       $prev = null;
       foreach ($this->_history as $h) {
         // de-dupe: the user thinks up/down is broken/lagged; it's pointless.
-        if ($h !== $prev && ! in_array($h, $blacklist)) {
+        if ($h !== $prev && ! in_array(trim($h), $blacklist)) {
           $prev = $h;
-          $hs[] = $h;
+          $hs[] = json_encode(rtrim($h));
         }
       }
       file_put_contents($this->historyFile, implode("\n", $hs));
@@ -99,8 +197,6 @@ class Readliner extends Readline {
    */
   public function _bindNewline(Readline $self)
   {
-    $self->addHistory($self->getLine());
-    $this->_historyCurrent = $this->_historySize;
     return static::STATE_BREAK;
   }
 
@@ -116,11 +212,15 @@ class Readliner extends Readline {
     if (empty($line)) {
       return;
     }
+    if (preg_match('/^return /', $line)) {
+      $line = trim(substr($line, 7));
+    }
     $this->_history[] = $line;
     if (count($this->_history) > 100) {
       array_shift($this->_history);
     }
     $this->_historySize = count($this->_history);
+    $this->_historyCurrent = $this->_historySize;
   }
 
   /**
@@ -160,11 +260,7 @@ class Readliner extends Readline {
    */
   public function _bindArrowDown(Readline $self)
   {
-    if (0 === (static::STATE_CONTINUE & static::STATE_NO_ECHO)) {
-      Cursor::clear('line');
-      echo $self->getPrefix();
-    }
-
+    $line   = $this->getLine();
     // User is already at the newest line and must be confused
     if ($this->_historyCurrent === $this->_historySize) {
       $buffer = $this->workingLine = $this->getLine();
@@ -178,6 +274,14 @@ class Readliner extends Readline {
     }
     $self->setLine($buffer);
     $self->setBuffer($buffer);
+
+    $mLines = substr_count($line, "\n");
+    Cursor::move('up', $mLines);
+    Cursor::clear('line');
+    Cursor::clear('down', $mLines);
+    if (0 === (static::STATE_CONTINUE & static::STATE_NO_ECHO)) {
+      echo $self->getPrefix();
+    }
     return static::STATE_CONTINUE;
   }
 
@@ -195,15 +299,30 @@ class Readliner extends Readline {
       Cursor::clear('line');
       echo $self->getPrefix();
     }
+    $line = $this->getLine();
     // User is working on something new, but decides to look at history
     if ($this->_historyCurrent === $this->_historySize) {
       // Save the current line so we can resume it
-      $this->workingLine = $this->getLine();
+      $this->workingLine = $line;
     }
+    $mLines = substr_count($line, "\n");
+    Cursor::move('up', $mLines);
+    Cursor::clear('LEFT');
+
     $buffer = $self->previousHistory();
     $self->setBuffer($buffer);
     $self->setLine($buffer);
-    return static::STATE_CONTINUE;
+
+    $bufLines = array();
+    foreach (explode("\n", $buffer) as $i => $bufLine) {
+        if ($i !== 0) {
+          $bufLines[] = $this->prefixMore . $bufLine;
+        } else {
+          $bufLines[] = $bufLine;
+        }
+    }
+    echo implode("\n", $bufLines);
+    return static::STATE_CONTINUE|static::STATE_NO_ECHO;
   }
 
   /**
@@ -226,8 +345,11 @@ class Readliner extends Readline {
     $line    = $self->getLine();
 
     // we need at least 1 char to work with
-    if (0 === $current) {
-      return $state;
+    // and if it's the start of a line, we'll echo it.
+    if (0 === $current || trim($line) === '') {
+      $this->appendLine("\t");
+      $this->_buffer .= "\t";
+      return static::STATE_CONTINUE;
     }
 
     $matches = preg_match_all(
@@ -238,7 +360,7 @@ class Readliner extends Readline {
     );
 
     if (0 === $matches) {
-        return $state;
+      return $state;
     }
 
     for ($i = 0, $max = count($words[1]);
@@ -328,7 +450,6 @@ class Readliner extends Readline {
 
       $pos = Cursor::getPosition();
       if (($window['y'] - $cursor['y'] - $mLines) < 0) {
-        #Debug::log("here", compact('window','cursor','mLines','mColumns'));
         echo str_repeat("\n", $mLines + 1);
         Cursor::move('up', $mLines);
         Cursor::clear('LEFT');

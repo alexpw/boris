@@ -234,10 +234,16 @@ class EvalWorker
     if (! isset($_1)) $_1 = null;
     if (! isset($_2)) $_2 = null;
     if (! isset($_3)) $_3 = null;
-    $result = eval($input);
-    while (is_string($result) && stripos($result, 'return ') === 0) {
-      $result = eval($result);
+
+    if (Reloader::isReloadable($input)) {
+      $result = Reloader::fromString($input);
+    } else {
+      $result = eval($input);
+      while (is_string($result) && stripos($result, 'return ') === 0) {
+        $result = eval($result);
+      }
     }
+
     $_3 = $_2;
     $_2 = $_1;
     $_1 = $result;

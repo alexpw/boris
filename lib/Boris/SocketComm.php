@@ -14,7 +14,7 @@ class SocketComm
   public static function sendRequest($socket, $request)
   {
     $request['type'] = 'request';
-    Debug::log('sendRequest', $request);
+    #Debug::log('sendRequest', $request);
     return self::writeMessage($socket, $request);
   }
 
@@ -22,7 +22,7 @@ class SocketComm
   {
     $response['type']   = 'response';
     $response['method'] = $request->method;
-    Debug::log('sendResponse', $response);
+    #Debug::log('sendResponse', $response);
     return self::writeMessage($socket, $response);
   }
 

@@ -36,6 +36,13 @@ class ShallowParser {
    * @return array
    */
   public function statements($buffer) {
+    static $rules = array(
+      '_scanEscapedChar',
+      '_scanRegion',
+      '_scanStateEntrant',
+      '_scanWsp',
+      '_scanChar',
+    );
     $result = $this->_createResult($buffer);
 
     while (strlen($result->buffer) > 0) {
@@ -46,8 +53,6 @@ class ShallowParser {
           continue;
         }
       }
-
-      $rules = array('_scanEscapedChar', '_scanRegion', '_scanStateEntrant', '_scanWsp', '_scanChar');
 
       foreach ($rules as $method) {
         if ($this->$method($result)) {
@@ -60,9 +65,10 @@ class ShallowParser {
       }
     }
 
-    if (!empty($result->statements) && trim($result->stmt) === '' && strlen($result->buffer) == 0) {
+    if (! empty($result->statements) &&
+        trim($result->stmt) === '' && strlen($result->buffer) == 0) {
       $this->_combineStatements($result);
-      $this->_prepareForDebug($result);
+      $this->_prepareForEval($result);
       return $result->statements;
     }
   }
@@ -108,8 +114,8 @@ class ShallowParser {
     $result->statements = $combined;
   }
 
-  private function _prepareForDebug($result) {
-    $result->statements []= $this->_prepareDebugStmt(array_pop($result->statements));
+  private function _prepareForEval($result) {
+    $result->statements []= $this->_prepareEvalStmt(array_pop($result->statements));
   }
 
   private function _initializeHeredoc($result) {
@@ -223,11 +229,10 @@ class ShallowParser {
     }
   }
 
-  private function _prepareDebugStmt($input) {
+  private function _prepareEvalStmt($input) {
     if ($this->_isReturnable($input) && !preg_match('/^\s*return/i', $input)) {
       $input = sprintf('return %s', $input);
     }
-
     return $input;
   }
 }
