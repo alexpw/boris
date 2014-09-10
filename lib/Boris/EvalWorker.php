@@ -136,7 +136,7 @@ class EvalWorker
   {
     $status = SocketComm::STATUS_OK;
     $body   = $this->completer->getCompletions($input->line, true, $scope);
-    Debug::log(__FUNCTION__, compact('status', 'body'));
+    #Debug::log(__FUNCTION__, compact('status', 'body'));
     return compact('status', 'body');
   }
 
