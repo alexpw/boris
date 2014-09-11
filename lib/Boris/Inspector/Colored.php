@@ -252,7 +252,7 @@ class Colored implements Inspector
       'integer' => 'light_green',
       'float'   => 'light_yellow',
       'string'  => 'light_red',
-      'bool'    => 'light_purple',
+      'bool'    => 'light_blue',
       'keyword' => 'light_cyan',
       'comment' => 'dark_grey',
       'default' => 'none'

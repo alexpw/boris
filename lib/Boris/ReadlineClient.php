@@ -10,12 +10,15 @@ use Hoa\Console\Readline\Autocompleter as AC;
 /**
  * The Readline client is what the user spends their time entering text into.
  *
- * Input is collected and sent to {@link \Boris\SocketComm} for processing.
+ * Input is collected and sent to {@link \Boris\EvalWorker} for processing.
  */
 class ReadlineClient
 {
   private $socket;
   private $reader;
+  private $buf;
+  private $prompter;
+  private $prompterMore;
 
   /**
    * Create a new ReadlineClient using $socket for communication.
@@ -29,18 +32,8 @@ class ReadlineClient
     $this->reader->setAutocompleter(
       new Autocomplete\Callback(array($this, 'completionCallback'))
     );
-    /*
-    $functions = get_defined_functions();
-    $internal  = $functions['internal'];
-    sort($internal);
-    $this->reader->setAutocompleter(
-        new AC\Aggregate(array(
-            new AC\Path('/Volumes/CODE/admgmt.answers.com/htdocs/laravel'),
-            new AC\Path('/tmp'),
-            new AC\Word($internal),
-        ))
-    );
-    */
+    #$this->reader->addMapping("\033[1;9A", [$this, 'bindAltUp']);
+    #$this->reader->addMapping("\033[1;9B", [$this, 'bindAltDown']);
   }
 
   public function __destruct()
@@ -64,16 +57,16 @@ class ReadlineClient
 
     declare(ticks = 1); // required "for the signal handler to function"
     pcntl_signal(SIGCHLD, SIG_IGN);
-    pcntl_signal(SIGINT, array($this, 'clear'), true); // ctrl+c
+    pcntl_signal(SIGINT, array($this, 'bindClearLine'), true); // ctrl+c
 
     // wait for the worker to finish executing hooks
     if (fread($this->socket, 1) != SocketComm::SIGNAL_READY) {
       throw new \RuntimeException('EvalWorker failed to start');
     }
 
-    $parser = new ShallowParser();
-    $buf    = '';
-    $lineno = 1;
+    $parser    = new ShallowParser();
+    $lineno    = 1;
+    $this->buf = '';
 
     // remove terminal color codes
     $cleanPrompt = $prompt;
@@ -85,11 +78,12 @@ class ReadlineClient
 
     for (;;) {
 
-      $prompter     = sprintf('[%d] %s', $lineno, $prompt);
-      $prompterMore = sprintf('[%d] %s', $lineno, $promptMore);
+      $this->prompter     = sprintf('[%d] %s', $lineno, $prompt);
+      $this->prompterMore = sprintf('[%d] %s', $lineno, $promptMore);
 
       $line = $this->reader->readLine(
-        ($buf ? $prompterMore : $prompter), $prompterMore
+        ($this->buf ? $this->prompterMore : $this->prompter),
+        $this->prompterMore
       );
 
       $ctrlD = ($line === false);
@@ -98,15 +92,15 @@ class ReadlineClient
       // - user shortcut 'exit'... (must be done here, b/c $parser waits for ';'
       if ($ctrlD || trim($line) === 'exit') {
         $line = 'exit(0);';
-        $buf = '';
+        $this->buf = '';
       }
 
-      $buf .= "$line\n";
+      $this->buf .= "$line\n";
 
-      if ($statements = $parser->statements($buf)) {
+      if ($statements = $parser->statements($this->buf)) {
         ++$lineno;
 
-        $buf = '';
+        $this->buf = '';
         foreach ($statements as $stmt) {
           // Add complete stmts to the history, instead of just 1 line.
           $this->reader->addHistory($stmt);
@@ -130,7 +124,7 @@ class ReadlineClient
                 case SocketComm::STATUS_OK:     break;
                 case SocketComm::STATUS_FAILED: break 2;
                 case SocketComm::STATUS_EXITED:
-                  $this->reader->saveHistory(array('exit','exit;','exit(0'));
+                  $this->reader->saveHistory(array('exit;','exit(0);'));
                   if ($ctrlD) {
                     echo "\n";
                   }
@@ -145,30 +139,34 @@ class ReadlineClient
   }
 
   /**
+   * Clear the current line/buffer.
    * ctrl+c like behavior, used by Reader
-   * @param int $code SIGINT = 2 on osx
+   * @param int|object $code SIGINT = 2 on osx
    */
-  public function clear($code)
+  public function bindClearLine($code = null)
   {
-    /**
-     * ctrl+c cases:
-     *  "Cancelling...":
-     *    - $line is not empty, $buf is empty
-     *    - We don't draw the prompt, b/c we're past the EVALUATE stage.
-     *  User typed something, but hasn't hit enter to evaluate:
-     *    - $line and $buf are not empty
-     *    - We need to redraw the prompt
-     *  User hasn't typed anything:
-     *    - $line and $buf are empty
-     *    - We need to redraw the prompt
-     */
-    $line = $this->reader->getLine();
-    $buf  = $this->reader->getBuffer();
-    if (empty($line) || trim($buf) !== '') {
-        Cursor::clear('line');
-        echo $this->reader->getPrefix();
-        $this->reader->setLine(null);
+    $line    = $this->reader->getLine();
+    $buffer  = trim($this->reader->getBuffer());
+
+    // ctrl+c = Cancelling...
+    if (! empty($line) && $buffer === '') {
+      Cursor::clear('line');
+    } else {
+    // User is viewing their history, else typed something
+      if (empty($this->buf)) {
+        $mLines = substr_count($buffer, "\n");
+      } else {
+        $mLines = substr_count($this->buf, "\n");
+      }
+    // Redraw the prompt, by erasing the existing buffered lines
+      Cursor::move('up', $mLines);
+      Cursor::clear('line');
+      Cursor::clear('down', $mLines);
+      $this->buf = '';
+      echo $this->prompter;
     }
+    $this->reader->setLine(null);
+    $this->reader->setBuffer('');
   }
 
   /**
@@ -207,26 +205,7 @@ class ReadlineClient
     if (! $response || $response->status !== SocketComm::STATUS_OK) {
        return array($word);
     }
-    #list($start, $end, $completions) = array($response->start, $response->end,
-    #                                         $response->completions);
 
-    /* PHP's readline extension is not very configurable and tends
-     * to pick the wrong boundaries for the symbol to complete.  Fix
-     * up the returned completions accordingly. */
-    /*
-    $rl_start = $rl_info['point'] - strlen($word);
-    $rl_end = $rl_info['point'];
-    if(!$completions) return array($word);
-    if($start < $rl_start) {
-      foreach($completions as &$c) {
-        $c = substr($c, $rl_start - $start);
-      }
-    } elseif($start > $rl_start) {
-      foreach($completions as &$c) {
-        $c = substr($line, $rl_start, $start - $rl_start) . $c;
-      }
-    }
-    */
     if (! empty($response->body)) {
       return $response->body->completions;
     }

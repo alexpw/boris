@@ -1,8 +1,21 @@
 # Boris
 
-This is a fork, please see and consider [the original](https://github.com/d11wtq/boris).
+This is a fork, please see and consider [the original](https://github.com/d11wtq/boris).  This fork is fully functional, but is not battle tested.  The rest of this README has been modified to accurately reflect this fork.
 
-A tiny, but robust REPL for PHP.
+## Differences from Original
+
+* Redefine existing functions and (basic) classes to quickly experiment with code.
+ * Available when runkit ext is installed (optional).
+* Swapped PHP's readline for a custom one based on [Hoa Console](hoa-project.net/En/Literature/Hack/Console.html)
+  * This provided full control over the UX, but a lot of potential bugs reinventing the basics.
+* Autocomplete, thanks to [joddie](https://github.com/joddie/boris/tree/completion-and-network-hacks)!
+ * Backported to support php 5.3
+* "Macro" support, allows transforming the input before it is evaled.
+  * Support for PHP's "use" statements, just a macro.
+* Multi-line history.
+
+## Intro
+A REPL for PHP.
 
 > **Announcement:** I'm looking to add one or two additional collaborators with
 > commit access. If you are actively involved in open source and have a GitHub
@@ -11,53 +24,36 @@ A tiny, but robust REPL for PHP.
 
 ![Demo](http://dl.dropbox.com/u/508607/BorisDemo-v4.gif "Quick Demo")
 
-Python has one. Ruby has one. Clojure has one. Now PHP has one too. Boris is
-PHP's missing REPL (read-eval-print loop), allowing developers to experiment
-with PHP code in the terminal in an interactive manner.  If you make a mistake,
-it doesn't matter, Boris will report the error and stand to attention for
-further input.
+Python has one. Ruby has one. Clojure has one. Now PHP has one too. Boris is PHP's missing REPL (read-eval-print loop), allowing developers to experiment with PHP code in the terminal in an interactive manner.  If you make a mistake, it doesn't matter, Boris will report the error and keep on going.
 
 Everything you enter into Boris is evaluated and the result inspected so you
-can understand what is happening.  State is maintained between inputs, allowing
-you to gradually build up a solution to a problem.
+can understand what is happening.  State is maintained between inputs, allowing you to gradually build up a solution to a problem.
 
 ## Why?
 
-I'm in the process of transitioning away from PHP to Ruby.  I have come to find
-PHP's lack of a real REPL to be frustrating and was not able to find an existing
-implementation that was complete.  Boris weighs in at a few hundred lines of
-fairly straightforward code.
+I have come to find PHP's lack of a real REPL to be frustrating and was not able to find an existing implementation that was complete.
+
+Facebook's [phpsh](http://phpsh.org/) is written in Python, abandoned, and most of the feature list doesn't work for me in the latest commits.
+
+Ieure's [PHP_Repl](https://github.com/ieure/php_repl) is 5 years old.  It's got some great stuff, but terminates on fatals, a deal breaker.
 
 ## Installation
 
-### 1. As a pre-built phar file
-
-Boris is available for download as a Phar archive:
-
-  - https://github.com/d11wtq/boris/releases/download/v1.0.8/boris.phar
-
-Simply download it and run it.
-
-    curl -L -O https://github.com/d11wtq/boris/releases/download/v1.0.8/boris.phar
-    chmod +x boris.phar
-    ./boris.phar
-
-### 2. Via packagist
+### 1. Via packagist
 
 For use with composer.
 
-  - https://packagist.org/packages/d11wtq/boris
+  - https://packagist.org/packages/alexpw/boris
 
-### 3. Directly from this repo
+### 2. Directly from this repo
 
-This is great if you want to stay really up-to-date. I don't commit unstable
-code to master, ever.
+This is great if you want to stay really up-to-date, but I (alexpw) may commit unstable code to master, at least until someone else starts using this fork.
 
-    git clone git://github.com/d11wtq/boris.git
+    git clone git://github.com/alexpw/boris.git
     cd boris
     ./bin/boris
 
-### 4. Build your own phar
+### 3. Build your own phar
 
 You can also build a PHAR file using [Box](http://box-project.org/):
 
@@ -75,32 +71,29 @@ Add boris to your $PATH for easy access.
 
 ## Usage
 
-When Boris starts, you will be at the `boris>` prompt. PHP code you enter at
+When Boris starts, you will be at the `php>` prompt. PHP code you enter at
 this prompt is evaluated.  If an expression spans multiple lines, Boris will
-collect the input and then evaluate the expression when it is complete. Press
-CTRL-C to clear a multi-line input buffer if you make a mistake. The output
-is dumped with `var_dump()` by default.
+collect the input and then evaluate the expression when it is complete. Press CTRL-C to clear a multi-line input buffer if you make a mistake.
 
-    boris> $x = 1;
-    int(1)
-    boris> $y = 2;
-    int(2)
-    boris> "x + y = " . ($x + $y);
-    string(9) "x + y = 3"
-    boris> exit;
+    php> $x = 1;
+    // 1
+    php> $y = 2;
+    // 2
+    php> "x + y = " . ($x + $y);
+    // "x + y = 3"
+    php> exit
 
 You can also use CTRL-D to exit the REPL.
 
 ### Cancelling long-running operations
 
-Long-running operations, such as infinite loops, may be cancelled at any time
-without quitting the REPL, by using CTRL-C while the operation is running.
+Long-running operations, such as infinite loops, may be cancelled at any time without quitting the REPL, by using CTRL-C while the operation is running.
 
-    boris> for ($i = 0; ; ++$i) {
-        *>   if ($i % 2 == 0) printf("Tick\n");
-        *>   else             printf("Tock\n");
-        *>   sleep(1);
-        *> }
+    php> for ($i = 0; ; ++$i) {
+      *>   if ($i % 2 == 0) printf("Tick\n");
+      *>   else             printf("Tock\n");
+      *>   sleep(1);
+      *> }
     Tick
     Tock
     Tick
@@ -109,7 +102,7 @@ without quitting the REPL, by using CTRL-C while the operation is running.
     Tock
     Tick
     ^CCancelling...
-    boris>
+    php>
 
 ### Using Boris with your application loaded
 
@@ -169,17 +162,17 @@ with `setLocal()`.
 
 If you have, things you always want to do when Boris starts, such as load
 useful utility functions, change the prompt or set local variable, you
-may create a ~/.borisrc file, which will be loaded whenever Boris starts up.
+may create a ~/.borisrc.php file, which will be loaded whenever Boris starts up (also supports ~/.borisrc, but you'll lose syntax highlighting).
 
 The contents of this file are just arbitrary PHP code. You are *not* inside
 the REPL itself in this file, but you have access to `$boris`, which is the
-REPL object. Here's an example ~/.borisrc that sets the prompt.
+REPL object. Here's an example ~/.borisrc.php that sets the prompt.
 
     <?php
 
-    /* File: ~/.borisrc */
+    /* File: ~/.borisrc.php */
 
-    $boris->setPrompt('prompty> ');
+    $boris->setPrompt('prompt> ');
 
 Boris will also look under your current working directory for this file. If
 it finds one on both locations, they will both be loaded by default (not that
@@ -207,10 +200,10 @@ Boris comes with three alternatives out of the box:
 
 Note that you can change this from inside the REPL too:
 
-    boris> $this->setInspector(new \Boris\ExportInspector());
-    -> NULL
-    boris> "Test";
-    -> 'Test'
+    php> $this->setInspector(new \Boris\ExportInspector());
+    // NULL
+    php> "Test";
+    // 'Test'
 
 To further customize object output within `\Boris\ColoredInspector`, you may
 subclass and override the `objectVars($value)` method:
@@ -302,12 +295,28 @@ terminates, otherwise the next iteration of the loop is entered.
 Boris depends on the following PHP features:
 
   - PHP >= 5.3
-  - The Readline functions
-  - The PCNTL functions
-  - The POSIX functions
+  - The [PCNTL](http://php.net/pcntl) functions
+  - The [POSIX](http//php.net/posix) functions
+
+And optionally can use:
+
+  - [Runkit](http://php.net/runkit)
 
 There's no chance it can work on Windows, due to the dependency on POSIX
 features (the code is almost entirely dependant on POSIX).
+
+### Installing runkit via pecl
+Runkit has not been released to a pecl repo for many years, despite being maintained, afaik.  So, you really want to just install from source.  Luckily, pecl can do this for you.
+
+ 1. Download the [latest source](http://git.php.net/?p=pecl/php/runkit.git;a=summary)
+ 2. Extract and cd into it.
+ 3. sudo pecl install package.xml
+ 4. If, like me, you get complaints of missing test files:
+   - Open package.xml and remove the offending lines.
+   - Retry the install (#3).
+ 5. Ensure your php.ini contains extension=runkit.so and php -m lists the module.
+
+Now when you try to redefine a re-existing function or basic class, it will succeed, rather than display a Fatal.
 
 ## Copyright & Licensing
 

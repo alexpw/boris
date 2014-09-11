@@ -10,9 +10,6 @@ namespace Boris;
 class EvalWorker
 {
   const EXIT_ABNORMAL = 255;
-  const ACTION_EVAL_STMT    = "eval";
-  const ACTION_AUTOCOMPLETE = "\1";
-  const ACTION_DELIVER      = "\2";
 
   private $socket;
   private $exports = array();
@@ -207,7 +204,8 @@ class EvalWorker
   /**
    * While a child process is running, terminate it immediately.
    */
-  public function cancelOperation() {
+  public function cancelOperation()
+  {
     echo "Cancelling...\n";
     $this->cancelled = true;
     posix_kill($this->pid, SIGKILL);
@@ -218,12 +216,14 @@ class EvalWorker
    * If any user-defined exception handler is present, call it,
    * but be sure to exit correctly.
    */
-  public function delegateExceptionHandler($ex) {
+  public function delegateExceptionHandler($ex)
+  {
     call_user_func($this->userExceptionHandler, $ex);
     exit(self::EXIT_ABNORMAL);
   }
 
-  private function evalInScope($input, &$scope) {
+  private function evalInScope($input, &$scope)
+  {
     static $unsetKeys = array(
       'unsetKeys' => 1,
       'input'     => 1,
@@ -231,7 +231,7 @@ class EvalWorker
       'result'    => 1,
     );
     extract($scope);
-    if (! isset($_1)) $_1 = null;
+    if (! isset($_1)) $_1 = $_ = null;
     if (! isset($_2)) $_2 = null;
     if (! isset($_3)) $_3 = null;
 
@@ -246,12 +246,13 @@ class EvalWorker
 
     $_3 = $_2;
     $_2 = $_1;
-    $_1 = $result;
+    $_1 = $_ = $result;
     $scope = array_diff_key(get_defined_vars(), $unsetKeys);
     return $result;
   }
 
-  private function runHooks($hooks) {
+  private function runHooks($hooks)
+  {
     extract($this->exports);
 
     foreach ($hooks as $hook) {
@@ -275,12 +276,14 @@ class EvalWorker
     return get_defined_vars();
   }
 
-  private function expungeOldWorker() {
+  private function expungeOldWorker()
+  {
     posix_kill($this->ppid, SIGTERM);
     pcntl_signal_dispatch();
   }
 
-  private function transform($input) {
+  private function transform($input)
+  {
     if ($input === null) {
       return null;
     }

@@ -9,7 +9,7 @@ namespace Boris;
  */
 class Boris
 {
-  const VERSION = "1.1.0";
+  const VERSION = "1.0.12";
 
   private $prompt = "\033[1;35mphp\033[0m\033[0;37m>\033[0m ";
   private $historyFile;
@@ -172,8 +172,9 @@ class Boris
   {
     printf("Boris %s\n", self::VERSION);
     printf("PHP %s\n", PHP_VERSION);
-    printf("%10s: Control+D or 'exit' or 'exit;'\n", 'Exit');
-    printf("%10s: Stored in vars \$_1, \$_2, \$_3\n", 'Results');
+    printf("%16s: Control+D or exit\n", 'Exit');
+    printf("%16s: Control+C\n", 'Clear Line');
+    printf("%16s: Stored in vars \$_ (also \$_1), \$_2, \$_3, respectively\n", 'Past Results');
   }
 
   private function forkAndStart()

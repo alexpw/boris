@@ -26,9 +26,11 @@ class Readliner extends Readline
     parent::__construct();
 
     $this->addMapping('\C-D', array($this, 'bindEOT'));
-    $this->addMapping('\C-L', array($this, 'bindClear'));
-    #$this->addMapping('\C-P', array($this, 'bindClear'));
+    $this->addMapping('\C-L', array($this, 'bindClearWindow'));
+    $this->addMapping("\033[1;9A", array($this, 'bindAltUp'));
+    $this->addMapping("\033[1;9B", array($this, 'bindAltDown'));
   }
+
   public function setPrefixMore($v)
   {
     $this->prefixMore = $v;
@@ -39,29 +41,13 @@ class Readliner extends Readline
     if (feof(STDIN)) {
         return false;
     }
-    $direct = Console::isDirect(STDIN);
-
-    if (false === $direct || OS_WIN) {
-        $out = fgets(STDIN);
-        if (false === $out) {
-            return false;
-        }
-        $out = substr($out, 0, -1);
-
-        if (true === $direct) {
-            echo $prefix;
-        } else {
-            echo $prefix, $out, "\n";
-        }
-        return $out;
-    }
 
     $this->resetLine();
     $this->setPrefix($prefix);
     $this->setPrefixMore($prefixMore);
-    $read = array(STDIN);
     echo $prefix;
 
+    $read = array(STDIN);
     while (true) {
         @stream_select($read, $write, $except, 30, 0);
 
@@ -73,6 +59,10 @@ class Readliner extends Readline
         $char = $this->_read(1);
         if ($char === "\033") {
           $char .= $this->_read(2);
+          if ($char{2} === '1') {
+            $char .= $this->_read(3);
+          }
+          //Debug::log('cntrl-all', str_split($char));
         }
         $this->_buffer = $char;
         $return        = $this->_readLine($char);
@@ -122,7 +112,7 @@ class Readliner extends Readline
   /**
    * End of Transmission (EOT)
    */
-  public function bindEOT($self)
+  public function bindEOT($self = null)
   {
     $this->setLine(false); // mimic readline() - return false for ctrl+d
     return self::STATE_BREAK;
@@ -131,11 +121,20 @@ class Readliner extends Readline
   /**
    * Clear the window, except for the current line.
    */
-  public function bindClear($self)
+  public function bindClearWindow($self = null)
   {
     Cursor::clear('all');
     echo $this->getPrefix() . $this->getLine();
     return self::STATE_NO_ECHO;
+  }
+
+  public function bindAltDown($self = null)
+  {
+    return static::STATE_CONTINUE|static::STATE_NO_ECHO;
+  }
+  public function bindAltUp($self = null)
+  {
+    return static::STATE_CONTINUE|static::STATE_NO_ECHO;
   }
 
   /**
@@ -154,7 +153,6 @@ class Readliner extends Readline
       while (($line = fgets($f)) !== false) {
         $lines[] = json_decode($line);
       }
-      //$lines = file($file, FILE_IGNORE_NEW_LINES);
 
       $size  = count($lines);
       $this->_history        = $lines;
@@ -179,12 +177,12 @@ class Readliner extends Readline
       $prev = null;
       foreach ($this->_history as $h) {
         // de-dupe: the user thinks up/down is broken/lagged; it's pointless.
-        if ($h !== $prev && ! in_array(trim($h), $blacklist)) {
+        if ($h !== $prev && ! in_array($h, $blacklist)) {
           $prev = $h;
-          $hs[] = json_encode(rtrim($h));
+          $hs[] = json_encode($h);
         }
       }
-      file_put_contents($this->historyFile, implode("\n", $hs));
+      file_put_contents($this->historyFile, implode("\n", $hs) . "\n");
     }
   }
 
@@ -282,7 +280,17 @@ class Readliner extends Readline
     if (0 === (static::STATE_CONTINUE & static::STATE_NO_ECHO)) {
       echo $self->getPrefix();
     }
-    return static::STATE_CONTINUE;
+
+    $bufLines = array();
+    foreach (explode("\n", $buffer) as $i => $bufLine) {
+        if ($i !== 0) {
+          $bufLines[] = $this->prefixMore . $bufLine;
+        } else {
+          $bufLines[] = $bufLine;
+        }
+    }
+    echo implode("\n", $bufLines);
+    return static::STATE_CONTINUE|static::STATE_NO_ECHO;
   }
 
   /**
@@ -378,14 +386,14 @@ class Readliner extends Readline
     //Debug::log('prefix', compact('line','current','words','word','prefix'));
 
     $solution = $autocompleter->complete($prefix);
-    //Debug::log('solution', $solution);
+    #Debug::log('solution', $solution);
 
     if (null === $solution || empty($solution)) {
         return $state;
     }
 
-    if (preg_match('/[\S]+(::|\->)([\S]*)/', $prefix, $m, PREG_OFFSET_CAPTURE)) {
-      //Debug::log('matchPrefix', compact('prefix', 'm'));
+    if (preg_match('/[\S]+([\W]+)([\S]*)/', $prefix, $m, PREG_OFFSET_CAPTURE)) {
+      #Debug::log('matchPrefix', compact('prefix', 'm'));
       $suffixLength = mb_strlen($m[2][0]);
       $prefix       = mb_substr($prefix, -$suffixLength);
       $tail         = mb_substr($line, $current);
@@ -401,7 +409,7 @@ class Readliner extends Readline
       $current -= $length;
     }
 
-    //Debug::log('completionSetup', compact('prefix','line','current','head','tail','length'));
+    #Debug::log('completionSetup', compact('prefix','line','current','head','tail','length'));
     if (is_array($solution)) {
       if (count($solution) === 1) {
 
@@ -416,39 +424,49 @@ class Readliner extends Readline
         echo $tail;
         Cursor::move('left', mb_strlen($tail));
 
-        #Debug::log('completion', array(
-        #  'line'    =>$self->getLine(),
-        #  'current' =>$self->getLineCurrent(),
-        #  'buffer'  =>$self->getBuffer(),
-        #));
+        Debug::log('completion', array(
+          'line'    =>$self->getLine(),
+          'current' =>$self->getLineCurrent(),
+          'buffer'  =>$self->getBuffer(),
+        ));
         return $state;
       }
 
       $_solution = $solution;
-      $count     = count($_solution) - 1;
-      $cWidth    = 0;
       $window    = Window::getSize();
-      $wWidth    = $window['x'];
       $cursor    = Cursor::getPosition();
+      $wWidth    = $window['x'];
 
-      array_walk($_solution, function ( &$value ) use ( &$cWidth ) {
-          $handle = mb_strlen($value);
-          if ($handle > $cWidth) {
-              $cWidth = $handle;
-          }
-      });
-      array_walk($_solution, function (&$value) use (&$cWidth) {
-          $handle = mb_strlen($value);
-          if ($handle >= $cWidth) {
-              return;
-          }
-          $value .= str_repeat(' ', $cWidth - $handle);
-      });
+      while (1) {
+        $count     = count($_solution) - 1;
+        $cWidth    = 0;
 
-      $mColumns = (int) floor($wWidth / ($cWidth + 2));
-      $mLines   = (int) ceil(($count + 1) / $mColumns);
-      --$mColumns;
-      //Debug::log('window', compact('window','cursor','wWidth','cWidth','mColumns','mLines'));
+        array_walk($_solution, function ( $value ) use ( &$cWidth ) {
+            $handle = mb_strlen($value);
+            if ($handle > $cWidth) {
+                $cWidth = $handle;
+            }
+        });
+        array_walk($_solution, function (&$value) use ($cWidth) {
+            $handle = mb_strlen($value);
+            if ($handle < $cWidth) {
+              $value .= str_repeat(' ', $cWidth - $handle);
+            }
+        });
+
+        $mColumns = (int) floor($wWidth / ($cWidth + 2));
+        $mLines   = (int) ceil(($count + 1) / $mColumns);
+        --$mColumns;
+
+        if ($mLines >= $window['y']) {
+          $toRemove = (($mLines - $window['y']) * $mColumns) + 1;
+          for ($i = 0; $i < $toRemove; $i++) {
+            array_pop($_solution);
+          }
+        } else {
+          break;
+        }
+      }
 
       $pos = Cursor::getPosition();
       if (($window['y'] - $cursor['y'] - $mLines) < 0) {
