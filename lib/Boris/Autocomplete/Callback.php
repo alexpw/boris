@@ -30,7 +30,7 @@ class Callback implements Autocompleter {
     public function complete(&$prefix)
 	{
 		$fn = $this->callback;
-		return $fn($prefix);
+		return call_user_func($fn, $prefix);
     }
 
     /**

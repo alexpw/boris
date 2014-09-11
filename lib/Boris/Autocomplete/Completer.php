@@ -4,11 +4,7 @@
 
 namespace Boris\Autocomplete;
 
-if (PHP_MAJOR_VERSION > 3) {
-  require "Completions.php";   // traits
-} else {
-  require "Completions53.php"; // make do
-}
+require_once 'Completions.php';
 use Boris\Autocomplete\Completions;
 
 use Boris\SocketComm;
