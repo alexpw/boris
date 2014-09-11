@@ -301,7 +301,7 @@ class Completer
       if (!$evaluate) return null;
       $input = 'return ' . $info->text . ';';
       list($status, $result) = @$this->evalWorker->forkAndEval($input, $scope);
-      Debug::log(__FUNCTION__, compact('input', 'scope', 'status', 'result'));
+      #Debug::log(__FUNCTION__, compact('input', 'scope', 'status', 'result'));
       if ($status !== SocketComm::STATUS_OK) return null;
       return $result;
     }

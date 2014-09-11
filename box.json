@@ -3,14 +3,18 @@
     "finder": [
         {
             "name": "*.php",
-            "exclude": [
-                "tests"
-            ],
+            "exclude": ["tests"],
             "in": "lib"
+        },
+        {
+            "name": "*.php",
+            "exclude": ["Tests"],
+            "in": "vendor"
         }
     ],
     "git-version": "git_tag",
     "main": "bin/boris",
     "output": "boris.phar",
+    "chmod": "0755",
     "stub": true
 }
