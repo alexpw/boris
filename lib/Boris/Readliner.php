@@ -424,11 +424,11 @@ class Readliner extends Readline
         echo $tail;
         Cursor::move('left', mb_strlen($tail));
 
-        Debug::log('completion', array(
-          'line'    =>$self->getLine(),
-          'current' =>$self->getLineCurrent(),
-          'buffer'  =>$self->getBuffer(),
-        ));
+        #Debug::log('completion', array(
+        #  'line'    =>$self->getLine(),
+        #  'current' =>$self->getLineCurrent(),
+        #  'buffer'  =>$self->getBuffer(),
+        #));
         return $state;
       }
 
@@ -471,7 +471,7 @@ class Readliner extends Readline
       $pos = Cursor::getPosition();
       if (($window['y'] - $cursor['y'] - $mLines) < 0) {
         echo str_repeat("\n", $mLines + 1);
-        Cursor::move('up', $mLines);
+        Cursor::move('up', $mLines + 1);
         Cursor::clear('LEFT');
         echo $this->getPrefix() . $this->getLine() . "\n";
         Cursor::move('up LEFT');
