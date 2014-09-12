@@ -4,7 +4,7 @@
 
 namespace Boris\Autocomplete\Completions;
 
-if (PHP_MAJOR_VERSION < 4) {
+if (PHP_MINOR_VERSION < 4) {
   require 'Completions.53-';
 } else {
   require 'Completions.54+';

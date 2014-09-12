@@ -7,6 +7,12 @@
         "hoa/stream": "dev-master",
         "hoa/console": "dev-master"
     },
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/alexpw/Console"
+        }
+    ],
     "suggest": {
         "ext-pcntl": "Optional Process Control extension depencency",
         "ext-posix": "Optional POSIX extension"

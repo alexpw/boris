@@ -4,7 +4,7 @@
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "603e10eeb417831f4e62c16ad6823cd9",
+    "hash": "230e1dc729a8cc8154a7bcff92dc9d11",
     "packages": [
         {
             "name": "hoa/console",
@@ -12,13 +12,13 @@
             "target-dir": "Hoa/Console",
             "source": {
                 "type": "git",
-                "url": "https://github.com/hoaproject/Console.git",
-                "reference": "f1b034ef988f5c93d8896277af737857a4412db2"
+                "url": "https://github.com/alexpw/Console.git",
+                "reference": "664368551bba4c0b83d5b94ad153386285ca63c0"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hoaproject/Console/zipball/f1b034ef988f5c93d8896277af737857a4412db2",
-                "reference": "f1b034ef988f5c93d8896277af737857a4412db2",
+                "url": "https://api.github.com/repos/alexpw/Console/zipball/664368551bba4c0b83d5b94ad153386285ca63c0",
+                "reference": "664368551bba4c0b83d5b94ad153386285ca63c0",
                 "shasum": ""
             },
             "require": {
@@ -37,7 +37,6 @@
                     "Hoa\\Console": "."
                 }
             },
-            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "BSD-3-Clause"
             ],
@@ -69,7 +68,12 @@
                 "tput",
                 "window"
             ],
-            "time": "2014-07-09 12:46:23"
+            "support": {
+                "email": "support@lists.hoa-project.net",
+                "irc": "irc://irc.freenode.org/hoaproject",
+                "source": "http://git.hoa-project.net/"
+            },
+            "time": "2014-09-12 01:17:21"
         },
         {
             "name": "hoa/core",

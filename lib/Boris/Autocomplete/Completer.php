@@ -34,7 +34,7 @@ class Completer
   );
 
   public function __construct($evalWorker) {
-    if (PHP_MAJOR_VERSION < 4) {
+    if (PHP_MINOR_VERSION < 4) {
       unset(self::$sources['trait']);
     }
     $this->evalWorker = $evalWorker;
@@ -157,7 +157,7 @@ class Completer
   }
 
   public function whoUses($trait) {
-    if (PHP_MAJOR_VERSION < 4) {
+    if (PHP_MINOR_VERSION < 4) {
       return array();
     }
     assert (is_string($trait));
