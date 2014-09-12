@@ -4,8 +4,9 @@
 
 namespace Boris\Autocomplete\Completions;
 
+$path = dirname(__FILE__) . DIRECTORY_SEPARATOR;
 if (PHP_MINOR_VERSION < 4) {
-  require 'Completions.53-';
+  require $path . 'Completions53-.php';
 } else {
-  require 'Completions.54+';
+  require $path . 'Completions54+.php';
 }

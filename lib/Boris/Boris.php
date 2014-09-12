@@ -9,7 +9,7 @@ namespace Boris;
  */
 class Boris
 {
-  const VERSION = "1.0.12";
+  const VERSION = "1.0.13";
 
   private $prompt = "\033[1;35mphp\033[0m\033[0;37m>\033[0m ";
   private $historyFile;
