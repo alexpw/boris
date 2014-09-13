@@ -47,8 +47,19 @@ class SocketComm
   private static function read($socket, $bytes)
   {
     for ($read = ''; strlen($read) < $bytes; $read .= $fread) {
-      $fread = @fread($socket, $bytes - strlen($read));
+      $fread = self::readForever($socket, $bytes - strlen($read));
     }
+    return $read;
+  }
+
+  private static function readForever($socket, $length)
+  {
+    $read = '';
+    do {
+      $read .= fread($socket, $length);
+      $info = stream_get_meta_data($socket);
+    }
+    while ($info['timed_out']);
     return $read;
   }
 
@@ -82,13 +93,14 @@ class SocketComm
 
   private static function unpackSocket($socket)
   {
-    $length_packed = fread($socket, 4);
+    $length_packed = self::read($socket, 4);
     if (strlen($length_packed) === 4) {
       $length_unpacked = unpack('N', $length_packed);
       $json_msg        = self::read($socket, $length_unpacked[1]);
       return json_decode($json_msg);
     }
   }
+
 
   private static function readStream($socket)
   {

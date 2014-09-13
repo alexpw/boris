@@ -77,6 +77,10 @@ class ReadlineClient
     $promptMore = str_replace('*', "\033[0;31m*\033[0m", $promptMore);
 
     for (;;) {
+      if (! $this->socket) {
+        fwrite(STDERR, "Socket has gone away\n");
+        exit(self::EXIT_ABNORMAL);
+      }
 
       $this->prompter     = sprintf('[%d] %s', $lineno, $prompt);
       $this->prompterMore = sprintf('[%d] %s', $lineno, $promptMore);
@@ -110,7 +114,7 @@ class ReadlineClient
 
           if ($written === false) {
             throw new \RuntimeException('Socket error: failed to write data');
-          } else if ($written > 0) {
+          } else {
             $response = SocketComm::readResponse($this->socket);
 
             if (! is_object($response)) {
@@ -118,7 +122,6 @@ class ReadlineClient
                 echo "Exiting: corrupted response, request was \n";
                 var_export($request);
                 echo "\n";
-                exit(255);
             } else {
               switch ($response->status) {
                 case SocketComm::STATUS_OK:     break;

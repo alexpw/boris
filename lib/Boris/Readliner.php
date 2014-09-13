@@ -81,7 +81,7 @@ class Readliner extends Readline
   {
     if (isset($this->_mapping[$char]) && is_callable($this->_mapping[$char])) {
       $mapping = $this->_mapping[$char];
-      $return  = $mapping($this);
+      $return  = call_user_func($mapping, $this);
     } else {
       if (isset($this->_mapping[$char])) {
         $this->_buffer = $this->_mapping[$char];

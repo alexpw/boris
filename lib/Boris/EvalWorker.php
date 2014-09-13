@@ -108,6 +108,10 @@ class EvalWorker
       // don't exit on ctrl-c
       pcntl_signal(SIGINT, SIG_IGN, true);
 
+      if (! $this->socket) {
+        fwrite(STDERR, "Socket has gone away\n");
+        exit(self::EXIT_ABNORMAL);
+      }
       if (null === ($request = SocketComm::waitForRequest($this->socket))) {
         continue;
       }
@@ -133,7 +137,6 @@ class EvalWorker
   {
     $status = SocketComm::STATUS_OK;
     $body   = $this->completer->getCompletions($input->line, true, $scope);
-    #Debug::log(__FUNCTION__, compact('status', 'body'));
     return compact('status', 'body');
   }
 
@@ -145,7 +148,7 @@ class EvalWorker
     if (preg_match('/\s*return\b/i', $input)) {
       fwrite(STDOUT, sprintf("%s\n", $this->inspector->inspect($result)));
     }
-    return array('status' => $status);
+    return compact('status');
   }
 
   /**
