@@ -2,17 +2,11 @@
     "name": "alexpw/boris",
     "require": {
         "php": ">=5.3.0",
-        "hoa/core": "dev-master",
-        "hoa/string": "dev-master",
-        "hoa/stream": "dev-master",
-        "hoa/console": "dev-master"
+        "hoa/core": "1.14.09.16",
+        "hoa/string": "1.14.09.16",
+        "hoa/stream": "0.14.09.16",
+        "hoa/console": "1.14.09.16"
     },
-    "repositories": [
-        {
-            "type": "vcs",
-            "url": "https://github.com/alexpw/Console"
-        }
-    ],
     "suggest": {
         "ext-pcntl": "Optional Process Control extension depencency",
         "ext-posix": "Optional POSIX extension"

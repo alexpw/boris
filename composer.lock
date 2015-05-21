@@ -4,27 +4,27 @@
         "Read more about it at http://getcomposer.org/doc/01-basic-usage.md#composer-lock-the-lock-file",
         "This file is @generated automatically"
     ],
-    "hash": "230e1dc729a8cc8154a7bcff92dc9d11",
+    "hash": "cd00fe6de8dfa9f4a2a782b7f346b521",
     "packages": [
         {
             "name": "hoa/console",
-            "version": "dev-master",
+            "version": "1.14.09.16",
             "target-dir": "Hoa/Console",
             "source": {
                 "type": "git",
-                "url": "https://github.com/alexpw/Console.git",
-                "reference": "664368551bba4c0b83d5b94ad153386285ca63c0"
+                "url": "https://github.com/hoaproject/Console.git",
+                "reference": "5ac9c0fb20f4a2680d4cc3b3a938376be9f37068"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/alexpw/Console/zipball/664368551bba4c0b83d5b94ad153386285ca63c0",
-                "reference": "664368551bba4c0b83d5b94ad153386285ca63c0",
+                "url": "https://api.github.com/repos/hoaproject/Console/zipball/5ac9c0fb20f4a2680d4cc3b3a938376be9f37068",
+                "reference": "5ac9c0fb20f4a2680d4cc3b3a938376be9f37068",
                 "shasum": ""
             },
             "require": {
-                "hoa/core": "dev-master",
-                "hoa/stream": "dev-master",
-                "hoa/string": "dev-master"
+                "hoa/core": "~1.0",
+                "hoa/stream": "~0.0",
+                "hoa/string": "~1.0"
             },
             "suggest": {
                 "ext-pcntl": "To enable hoa://Event/Console/Window:resize.",
@@ -37,6 +37,7 @@
                     "Hoa\\Console": "."
                 }
             },
+            "notification-url": "https://packagist.org/downloads/",
             "license": [
                 "BSD-3-Clause"
             ],
@@ -68,26 +69,21 @@
                 "tput",
                 "window"
             ],
-            "support": {
-                "email": "support@lists.hoa-project.net",
-                "irc": "irc://irc.freenode.org/hoaproject",
-                "source": "http://git.hoa-project.net/"
-            },
-            "time": "2014-09-12 01:17:21"
+            "time": "2014-09-16 19:47:18"
         },
         {
             "name": "hoa/core",
-            "version": "dev-master",
+            "version": "1.14.09.16",
             "target-dir": "Hoa/Core",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hoaproject/Core.git",
-                "reference": "6906177987e3a0dd4042f155768b14e5cb28669b"
+                "reference": "e50bb985bab946963b1bf75fd0b551fdbbf03c5b"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hoaproject/Core/zipball/6906177987e3a0dd4042f155768b14e5cb28669b",
-                "reference": "6906177987e3a0dd4042f155768b14e5cb28669b",
+                "url": "https://api.github.com/repos/hoaproject/Core/zipball/e50bb985bab946963b1bf75fd0b551fdbbf03c5b",
+                "reference": "e50bb985bab946963b1bf75fd0b551fdbbf03c5b",
                 "shasum": ""
             },
             "require": {
@@ -138,25 +134,25 @@
                 "parameter",
                 "protocol"
             ],
-            "time": "2014-08-25 08:21:53"
+            "time": "2014-09-16 19:26:31"
         },
         {
             "name": "hoa/stream",
-            "version": "dev-master",
+            "version": "0.14.09.16",
             "target-dir": "Hoa/Stream",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hoaproject/Stream.git",
-                "reference": "ad839ca95ac2663dc11105f33f75aa11691c35c1"
+                "reference": "6d01045fcb22611299cb9689271cd26feef8e095"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hoaproject/Stream/zipball/ad839ca95ac2663dc11105f33f75aa11691c35c1",
-                "reference": "ad839ca95ac2663dc11105f33f75aa11691c35c1",
+                "url": "https://api.github.com/repos/hoaproject/Stream/zipball/6d01045fcb22611299cb9689271cd26feef8e095",
+                "reference": "6d01045fcb22611299cb9689271cd26feef8e095",
                 "shasum": ""
             },
             "require": {
-                "hoa/core": "dev-master"
+                "hoa/core": "~1.0"
             },
             "type": "library",
             "autoload": {
@@ -192,26 +188,26 @@
                 "stream",
                 "wrapper"
             ],
-            "time": "2014-07-24 13:58:25"
+            "time": "2014-09-16 19:28:43"
         },
         {
             "name": "hoa/string",
-            "version": "dev-master",
+            "version": "1.14.09.16",
             "target-dir": "Hoa/String",
             "source": {
                 "type": "git",
                 "url": "https://github.com/hoaproject/String.git",
-                "reference": "94cde10eeb025c27a1d6b1a92812d3bfe59217f0"
+                "reference": "747881d08c7bb4a6d6bc22bbe83d1f8613f721e9"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/hoaproject/String/zipball/94cde10eeb025c27a1d6b1a92812d3bfe59217f0",
-                "reference": "94cde10eeb025c27a1d6b1a92812d3bfe59217f0",
+                "url": "https://api.github.com/repos/hoaproject/String/zipball/747881d08c7bb4a6d6bc22bbe83d1f8613f721e9",
+                "reference": "747881d08c7bb4a6d6bc22bbe83d1f8613f721e9",
                 "shasum": ""
             },
             "require": {
                 "ext-iconv": "*",
-                "hoa/core": "dev-master"
+                "hoa/core": "~1.0"
             },
             "suggest": {
                 "ext-intl": "To get a better Hoa\\String::toAscii() and Hoa\\String::compareTo()."
@@ -244,18 +240,13 @@
                 "string",
                 "unicode"
             ],
-            "time": "2014-02-24 14:56:33"
+            "time": "2014-09-16 19:45:47"
         }
     ],
     "packages-dev": [],
     "aliases": [],
     "minimum-stability": "stable",
-    "stability-flags": {
-        "hoa/core": 20,
-        "hoa/string": 20,
-        "hoa/stream": 20,
-        "hoa/console": 20
-    },
+    "stability-flags": [],
     "prefer-stable": false,
     "platform": {
         "php": ">=5.3.0"
